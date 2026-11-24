@@ -31,10 +31,10 @@ owner="$(stat -c '%U' "${INSTALL_DIR}")"
 
 cat <<EOF
 This will:
-  - install packages: mpv python3-gpiozero python3-lgpio samba
+  - install packages: mpv ffmpeg python3-gpiozero python3-lgpio samba
   - back up and edit ${CONFIG_TXT} (PWM audio on GPIO18/19)
   - back up and edit ${CMDLINE_TXT} (add: ${CMDLINE_ADD})
-  - install and enable systemd services tvbutton and tvplayer
+  - install and enable the systemd service simpsonstv
     for the code in ${INSTALL_DIR}
   - back up and edit ${SMB_CONF}: add a network share "videos" for
     ${INSTALL_DIR}/videos with NO PASSWORD. Anyone on your local network
@@ -50,7 +50,8 @@ fi
 
 echo "== Installing packages"
 apt-get update
-apt-get install -y mpv python3-gpiozero python3-lgpio
+# ffmpeg provides ffprobe, used to read episode lengths for the schedule
+apt-get install -y mpv ffmpeg python3-gpiozero python3-lgpio
 DEBIAN_FRONTEND=noninteractive apt-get install -y samba
 if ! command -v pinctrl >/dev/null; then
         apt-get install -y raspi-utils
@@ -98,17 +99,19 @@ else
         chown "${owner}:" "${INSTALL_DIR}/simpsonstv.conf"
         echo "   created ${INSTALL_DIR}/simpsonstv.conf"
 fi
-mkdir -p "${INSTALL_DIR}/videos"
-chown "${owner}:" "${INSTALL_DIR}/videos"
+mkdir -p "${INSTALL_DIR}/videos" "${INSTALL_DIR}/cache"
+chown "${owner}:" "${INSTALL_DIR}/videos" "${INSTALL_DIR}/cache"
 
 echo "== Services"
-for unit in tvbutton.service tvplayer.service; do
-        sed "s|@INSTALL_DIR@|${INSTALL_DIR}|g" "${INSTALL_DIR}/services/${unit}" \
-                > "/etc/systemd/system/${unit}"
-        echo "   installed /etc/systemd/system/${unit}"
+# Clean up what earlier versions of this script installed: the separate
+# player and button services (now one simpsonstv service) and USB autocopy.
+for old in tvplayer.service tvbutton.service; do
+        if [ -e "/etc/systemd/system/${old}" ]; then
+                systemctl disable --now "${old}" || true
+                rm -f "/etc/systemd/system/${old}"
+                echo "   removed old ${old}"
+        fi
 done
-
-# USB autocopy was removed; clean up what an earlier version of this script installed.
 for old in /etc/udev/rules.d/99-simpsonstv-autocopy.rules /etc/systemd/system/tvautocopy@.service; do
         if [ -e "${old}" ]; then
                 rm -f "${old}"
@@ -116,9 +119,13 @@ for old in /etc/udev/rules.d/99-simpsonstv-autocopy.rules /etc/systemd/system/tv
         fi
 done
 
+sed "s|@INSTALL_DIR@|${INSTALL_DIR}|g" "${INSTALL_DIR}/services/simpsonstv.service" \
+        > /etc/systemd/system/simpsonstv.service
+echo "   installed /etc/systemd/system/simpsonstv.service"
+
 systemctl daemon-reload
 udevadm control --reload
-systemctl enable tvbutton.service tvplayer.service
+systemctl enable simpsonstv.service
 
 echo "== Network share"
 # Open guest share for uploading episodes, one folder per show. Files are

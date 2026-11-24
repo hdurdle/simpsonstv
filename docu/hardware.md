@@ -93,11 +93,11 @@ AUDIO AMPLIFIER GROUND -> GND
 ```
 Buttons
 ```
-BUTTON NEXT VIDEO PIN A -> GPIO6
-BUTTON NEXT VIDEO PIN B -> GND
+BUTTON CHANNEL UP PIN A -> GPIO6
+BUTTON CHANNEL UP PIN B -> GND
 
-BUTTON REWIND PIN A -> GPIO5
-BUTTON REWIND PIN B -> GND
+BUTTON CHANNEL DOWN PIN A -> GPIO5
+BUTTON CHANNEL DOWN PIN B -> GND
 ```
 LED (not used by this version)
 ```
@@ -158,7 +158,7 @@ LED FOR INDICATE USB COMMUNICATION CATODE -> GND
 <img src="microUSB.jfif" width="512"/>
 <img src="hw/microusbmale.jpg" width="512"/>
 
-10. Button in VCR recorder. We need only 3 wire. One wire is common (GND). Second wire is for next movie, and next wire is for rewind. solder and glue
+10. Button in VCR recorder. We need only 3 wire. One wire is common (GND). Second wire is for channel up (right button), and next wire is for channel down (left button). solder and glue
 <img src="hw/vcr2.jpg" width="512"/>
 <img src="hw/vcr1.jpg" width="512"/>
 
@@ -198,9 +198,9 @@ LED Catode -> GND
 19. Now we can soldering wire from VCR to RPI PCB
 
 ```
-Wire from button for next movie -> GPIO6
+Wire from button for channel up -> GPIO6
 Common wire -> GND
-Wire from button for rewind -> GPIO5
+Wire from button for channel down -> GPIO5
 ```
 
 <img src="hw/vcr_rpi1.jpg" width="512"/>

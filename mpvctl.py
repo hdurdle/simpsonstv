@@ -1,9 +1,9 @@
-"""Shared settings and mpv control for the Simpsons TV scripts.
+"""Shared settings and control of the single mpv player.
 
-The player scripts start one mpv process per video with a JSON IPC socket.
-buttons.py talks to whichever mpv is currently running through that socket.
+tv.py keeps one mpv running in idle mode and loads each episode or clip into
+it over mpv's JSON IPC socket.
 
-Settings come from environment variables, which the systemd services load
+Settings come from environment variables, which the systemd service loads
 from simpsonstv.conf (see simpsonstv.conf.example).
 """
 import json
@@ -16,10 +16,9 @@ import time
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 VIDEO_DIR = os.environ.get('SIMPSONSTV_VIDEO_DIR', os.path.join(BASE_DIR, 'videos'))
 INTERSTITIAL_DIR = os.environ.get('SIMPSONSTV_INTERSTITIAL_DIR', os.path.join(BASE_DIR, 'interstitials'))
+CACHE_DIR = os.environ.get('SIMPSONSTV_CACHE_DIR', os.path.join(BASE_DIR, 'cache'))
 RUN_DIR = os.environ.get('SIMPSONSTV_RUN_DIR', '/run/simpsonstv')
 SOCKET_PATH = os.path.join(RUN_DIR, 'mpv.sock')
-# Exists while the TV is switched off, so a newly started video starts paused.
-PAUSE_FLAG = os.path.join(RUN_DIR, 'paused')
 
 # Hardware-specific mpv options; override with MPV_ARGS in simpsonstv.conf.
 DEFAULT_MPV_ARGS = (
@@ -28,26 +27,9 @@ DEFAULT_MPV_ARGS = (
 )
 
 
-def ensure_run_dir():
+def ensure_dirs():
     os.makedirs(RUN_DIR, exist_ok=True)
-
-
-def list_videos():
-    """Return the full paths of all .mp4 files in the video folder and its
-    subfolders (one per show), sorted by path so each show's episodes are in order.
-
-    Hidden files and folders are skipped, which also skips the "._" files
-    macOS leaves on network shares.
-    """
-    videos = []
-    for folder, subfolders, files in os.walk(VIDEO_DIR):
-        subfolders[:] = [name for name in subfolders if not name.startswith('.')]
-        videos.extend(
-            os.path.join(folder, name)
-            for name in files
-            if name.lower().endswith('.mp4') and not name.startswith('.')
-        )
-    return sorted(videos)
+    os.makedirs(CACHE_DIR, exist_ok=True)
 
 
 def static_clips():
@@ -67,9 +49,17 @@ def interstitial(name):
     return path if os.path.isfile(path) else None
 
 
-def mpv_command(video):
+def is_interstitial(path):
+    return bool(path) and os.path.dirname(path) == INTERSTITIAL_DIR
+
+
+def start():
+    """Start mpv in idle mode and wait until it accepts commands."""
+    if os.path.exists(SOCKET_PATH):
+        os.remove(SOCKET_PATH)
     args = [
         'mpv',
+        '--idle=yes',
         '--fullscreen',
         '--osd-level=0',
         '--input-terminal=no',
@@ -77,26 +67,19 @@ def mpv_command(video):
         '--input-ipc-server=' + SOCKET_PATH,
     ]
     args += shlex.split(os.environ.get('MPV_ARGS', DEFAULT_MPV_ARGS))
-    if os.path.exists(PAUSE_FLAG):
-        args.append('--pause')
-    args.append(video)
-    return args
-
-
-def play(video):
-    """Play one video and block until mpv exits (video ended or 'quit' was sent)."""
-    started = time.monotonic()
-    result = subprocess.run(mpv_command(video))
-    if result.returncode != 0 and time.monotonic() - started < 2:
-        # mpv failed straight away (bad options, broken file); don't spin the CPU.
-        time.sleep(2)
-    return result.returncode
+    process = subprocess.Popen(args)
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline and process.poll() is None:
+        if ok(send('get_property', 'idle-active')):
+            break
+        time.sleep(0.2)
+    return process
 
 
 def send(*command):
-    """Send one command to the running mpv.
+    """Send one command to mpv.
 
-    Returns mpv's reply as a dict, or None if no mpv is running or it didn't answer.
+    Returns mpv's reply as a dict, or None if mpv isn't running or didn't answer.
     """
     try:
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
@@ -126,3 +109,9 @@ def get(name):
     """Read an mpv property; None if mpv isn't running or the property isn't available."""
     reply = send('get_property', name)
     return reply.get('data') if ok(reply) else None
+
+
+def load(path, start_at=None):
+    """Replace whatever is playing with `path`, optionally starting part-way in."""
+    send('set', 'start', 'none' if start_at is None else '%.2f' % start_at)
+    return ok(send('loadfile', path, 'replace'))

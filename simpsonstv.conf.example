@@ -1,15 +1,10 @@
 # Simpsons TV settings.
 # install.sh copies this to simpsonstv.conf; edit that copy, then run:
-#   sudo systemctl restart tvbutton tvplayer
-
-# Which player to run:
-#   player.py           random order
-#   player-playlist.py  name order, resumes the last video after a reboot
-PLAYER_SCRIPT=player.py
+#   sudo systemctl restart simpsonstv
 
 # mpv options for display and audio.
 # - Picture upside down: change --video-rotate=270 to --video-rotate=90
-# - Black screen / mpv errors in `journalctl -u tvplayer`: try --vo=drm instead of
+# - Black screen / mpv errors in `journalctl -u simpsonstv`: try --vo=drm instead of
 #   --vo=gpu --gpu-context=drm
 # - Picture hidden behind the case bezel on one side: add e.g.
 #   --video-margin-ratio-right=0.0625  (the old omxplayer setup used 750 of 800 px)
