@@ -30,10 +30,10 @@ owner="$(stat -c '%U' "${INSTALL_DIR}")"
 
 cat <<EOF
 This will:
-  - install packages: mpv python3-gpiozero python3-lgpio rsync
+  - install packages: mpv python3-gpiozero python3-lgpio
   - back up and edit ${CONFIG_TXT} (PWM audio on GPIO18/19)
   - back up and edit ${CMDLINE_TXT} (add: ${CMDLINE_ADD})
-  - install and enable systemd services tvbutton, tvplayer and the USB autocopy rule
+  - install and enable systemd services tvbutton and tvplayer
     for the code in ${INSTALL_DIR}
 EOF
 if [ "${1:-}" != "-y" ]; then
@@ -46,7 +46,7 @@ fi
 
 echo "== Installing packages"
 apt-get update
-apt-get install -y mpv python3-gpiozero python3-lgpio rsync
+apt-get install -y mpv python3-gpiozero python3-lgpio
 if ! command -v pinctrl >/dev/null; then
         apt-get install -y raspi-utils
 fi
@@ -95,16 +95,21 @@ else
 fi
 mkdir -p "${INSTALL_DIR}/videos"
 chown "${owner}:" "${INSTALL_DIR}/videos"
-chmod +x "${INSTALL_DIR}/autocopy.sh"
 
 echo "== Services"
-for unit in tvbutton.service tvplayer.service tvautocopy@.service; do
+for unit in tvbutton.service tvplayer.service; do
         sed "s|@INSTALL_DIR@|${INSTALL_DIR}|g" "${INSTALL_DIR}/services/${unit}" \
                 > "/etc/systemd/system/${unit}"
         echo "   installed /etc/systemd/system/${unit}"
 done
-cp "${INSTALL_DIR}/services/99-simpsonstv-autocopy.rules" /etc/udev/rules.d/
-echo "   installed /etc/udev/rules.d/99-simpsonstv-autocopy.rules"
+
+# USB autocopy was removed; clean up what an earlier version of this script installed.
+for old in /etc/udev/rules.d/99-simpsonstv-autocopy.rules /etc/systemd/system/tvautocopy@.service; do
+        if [ -e "${old}" ]; then
+                rm -f "${old}"
+                echo "   removed old ${old}"
+        fi
+done
 
 systemctl daemon-reload
 udevadm control --reload

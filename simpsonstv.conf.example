@@ -18,6 +18,3 @@ MPV_ARGS="--vo=gpu --gpu-context=drm --hwdec=auto-safe --video-rotate=270 --ao=a
 
 # Set to 1 if the power switch works backwards (TV plays when switched off).
 POWER_SWITCH_INVERT=0
-
-# GPIO for the USB copy LED.
-AUTOCOPY_LED_PIN=27

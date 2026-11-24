@@ -8,7 +8,7 @@ import mpvctl
 def main():
     mpvctl.ensure_run_dir()
     while True:
-        # Re-read the folder each pass so videos copied from USB get picked up.
+        # Re-read the folder each pass so newly copied videos get picked up.
         videos = mpvctl.list_videos()
         if not videos:
             print('No videos found in ' + mpvctl.VIDEO_DIR)
