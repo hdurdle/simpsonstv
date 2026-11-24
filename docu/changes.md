@@ -7,7 +7,7 @@
 - **Live channels** (`tv.py`, `channels.py`): each show folder is a channel airing its episodes in order on a real-time schedule. Changing channel joins whatever is on now. The TV remembers its channel.
 - **Controls:** the VCR buttons are channel up and down. The power switch turns sound and picture off while the channels keep going. Holding both buttons for 3 seconds shuts down.
 - Channel-change **static** plays between channels, and a **CRT switch-off** plays before shutdown (`interstitials/`).
-- Episodes are uploaded to a password-free **Samba network share** (`videos`), in one folder per show.
+- Episodes are uploaded to a **Samba network share** (`videos`, login `tv` with a password chosen at install), in one folder per show.
 - Removed: USB stick autocopy and its LED; the random and playlist players (`player.py`, `player-playlist.py`) and rewind, all replaced by live channels.
 
 ## johnyHV's version

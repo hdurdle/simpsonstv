@@ -71,7 +71,7 @@ Until [PR #1](https://github.com/hdurdle/simpsonstv/pull/1) is merged, the new c
 - sets the **LCD mode** (480×800) and hides the text console in `/boot/firmware/cmdline.txt`. Both files are backed up first, next to the originals.
 - creates `~/simpsonstv/simpsonstv.conf` with the default settings
 - installs and starts the **simpsonstv** service, which runs at every boot
-- installs **Samba** and shares the `videos` folder on your network as `videos`, **with no password** (see the next step). `/etc/samba/smb.conf` is backed up first.
+- installs **Samba** and shares the `videos` folder on your network as `videos`, with the login **`tv`**. On the first run it **asks you to choose the share's password**. `/etc/samba/smb.conf` is backed up first. It also installs **wsdd**, so the TV shows up under *Network* in Windows File Explorer.
 
 It's safe to run again (for example after `git pull`); changes it has already made aren't repeated.
 
@@ -95,23 +95,17 @@ videos
     └── S01E01.mp4
 ```
 
-Open the share from your computer:
+Open the share from your computer. The login is **`tv`**, with the password you chose when you ran `install.sh`:
 
-- **Windows:** in File Explorer's address bar, type `\\<hostname>.local\videos` (for example `\\simpsonstv.local\videos`).
-- **Mac:** in Finder, choose *Go → Connect to Server*, enter `smb://<hostname>.local/videos`, and connect as **Guest**.
-- **Linux:** `smb://<hostname>.local/videos` in your file manager.
+- **Windows:** in File Explorer's address bar, type `\\<hostname>.local\videos` (for example `\\simpsonstv.local\videos`). When asked, enter the username as **`<hostname>\tv`** (for example `simpsonstv\tv`); the hostname in front stops Windows using your own PC's or work domain. Tick *Remember my credentials* if you like.
+- **Mac:** in Finder, choose *Go → Connect to Server*, enter `smb://<hostname>.local/videos`, choose **Registered User**, and log in as `tv`.
+- **Linux:** `smb://<hostname>.local/videos` in your file manager, logging in as `tv`.
 
 New shows and episodes appear automatically within a couple of minutes; no restart needed. Files still being copied are left out until they've finished.
 
-**The share has no password.** Anyone on your local network can add, rename and delete episodes. It only accepts connections from private (home network) addresses, never from the internet.
+Anyone with the password can add, rename and delete episodes. The share only accepts connections from private (home or office network) addresses, never from the internet. To change the password, run `sudo ./install.sh --share-password`.
 
-**Windows 11 says "You can't access this shared folder" or asks for a password:** Windows blocks password-free shares by default. To allow them, run this once in PowerShell as administrator:
-
-```
-Set-SmbClientConfiguration -EnableInsecureGuestLogons $true -RequireSecuritySignature $false
-```
-
-This setting applies to every share that PC connects to, not just the TV's. If you'd rather not change it, copy files with `scp` or WinSCP instead (`scp *.mp4 <username>@<hostname>.local:"~/simpsonstv/videos/The Simpsons/"`).
+You can also copy files with `scp` or WinSCP, using your Pi login instead of the share: `scp *.mp4 <username>@<hostname>.local:"~/simpsonstv/videos/The Simpsons/"`.
 
 ## 6. Settings
 
@@ -175,7 +169,9 @@ The log lists the channels after each scan and every channel change.
 - **No sound:** find the card name with `aplay -l`, and test with `speaker-test -D plughw:CARD=Headphones -c 1 -t sine`.
 - **Power switch works backwards:** set `POWER_SWITCH_INVERT=1`.
 - **Only snow, or "Channels: none" in the log:** check that the mp4 files are in show folders in `~/simpsonstv/videos`, that the copy finished more than a minute ago, and that `ffprobe <file>` can read them.
-- **Can't connect to the share:** check Samba is running with `systemctl status smbd`, and see the Windows 11 note in step 5. If your computer is on an unusual network range, adjust `hosts allow` in the `simpsonstv` block of `/etc/samba/smb.conf`, then run `sudo systemctl restart smbd`.
+- **TV doesn't appear under Network in Windows:** type `\\<hostname>.local\videos` into File Explorer's address bar instead, or use the Pi's IP address (`hostname -I` on the Pi). Discovery relies on the `wsdd` service: `systemctl status wsdd`.
+- **Can't connect to the share:** check Samba is running with `systemctl status smbd`. Make sure you log in as `<hostname>\tv` on Windows, not just `tv`. Check the password from the Pi with `smbclient -U tv //localhost/videos -c ls` (install `smbclient` first). If Windows keeps reusing a wrong password, remove the saved one in *Credential Manager → Windows Credentials*. If your computer is on an unusual network range, adjust `hosts allow` in the `simpsonstv` block of `/etc/samba/smb.conf`, then run `sudo systemctl restart smbd`.
+- **Forgot the share password:** run `sudo ./install.sh --share-password` to set a new one.
 
 ## Updating
 
