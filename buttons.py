@@ -1,11 +1,12 @@
 """Power switch and VCR buttons.
 
 - Power switch (GPIO26): on = play with sound, off = pause and mute the amplifier.
-- Right VCR button (GPIO6): next video.
+- Right VCR button (GPIO6): next video, with a burst of channel-change static.
 - Left VCR button (GPIO5): rewind 15 seconds.
-- Hold both VCR buttons for 3 seconds: shut down.
+- Hold both VCR buttons for 3 seconds: CRT switch-off animation, then shut down.
 """
 import os
+import random
 import subprocess
 import time
 
@@ -61,9 +62,22 @@ def turn_off():
     pinctrl('set', AUDIO_PWM_PIN, 'ip')  # disconnect PWM audio to stop hiss
 
 
-def play_next_video():
+last_static = None
+
+
+def play_next_video(tv_on):
+    """Swap the current video for a burst of static; when it ends mpv exits and
+    the player script moves on to the next video. Pressing again during the
+    static loads another clip, like flicking through channels."""
+    global last_static
     print('Next video')
-    mpvctl.send('quit')  # the player script moves on to the next video
+    clips = mpvctl.static_clips()
+    if tv_on and clips:
+        choices = [clip for clip in clips if clip != last_static] or clips
+        last_static = random.choice(choices)
+        if mpvctl.ok(mpvctl.send('loadfile', last_static, 'replace')):
+            return
+    mpvctl.send('quit')  # TV off, no clips, or mpv refused: just skip
 
 
 def rewind_video():
@@ -71,8 +85,27 @@ def rewind_video():
     mpvctl.send('seek', -REWIND_SECONDS, 'relative')
 
 
-def shutdown_system():
+def play_switch_off():
+    """Play the CRT switch-off clip and wait for it to finish."""
+    clip = mpvctl.interstitial('crt_off.mp4')
+    if not clip:
+        return
+    # Hold the last (black) frame instead of exiting, so the player script
+    # doesn't start another video before the Pi powers off.
+    mpvctl.send('set_property', 'keep-open', 'yes')
+    if not mpvctl.ok(mpvctl.send('loadfile', clip, 'replace')):
+        return
+    mpvctl.send('set_property', 'pause', False)
+    time.sleep(0.3)  # let the new file start before checking for its end
+    deadline = time.monotonic() + 4
+    while time.monotonic() < deadline and mpvctl.get('eof-reached') is not True:
+        time.sleep(0.1)
+
+
+def shutdown_system(tv_on):
     print('Power off')
+    if tv_on:
+        play_switch_off()
     subprocess.run(['systemctl', 'poweroff'], check=False)
 
 
@@ -105,7 +138,7 @@ def main():
             if both_pressed_since is None:
                 both_pressed_since = now
             elif now - both_pressed_since >= SHUTDOWN_HOLD_SECONDS:
-                shutdown_system()
+                shutdown_system(tv_on)
                 return
         else:
             both_pressed_since = None
@@ -113,7 +146,7 @@ def main():
         # Single-button actions fire on release, like the original script.
         if not combo_used:
             if next_was_pressed and not next_pressed:
-                play_next_video()
+                play_next_video(tv_on)
             if rewind_was_pressed and not rewind_pressed:
                 rewind_video()
         if not next_pressed and not rewind_pressed:

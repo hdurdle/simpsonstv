@@ -316,9 +316,11 @@ python3 encode.py
 ## Controls
 
 - **Power switch**: on plays with sound; off pauses the video and mutes the amplifier.
-- **Right VCR button**: next video.
+- **Right VCR button**: next video. A short random burst of channel-change static (`interstitials/static_*.mp4`) plays first. Pressing again during the static gives more static, like flicking through channels. With the power switch off it skips without static.
 - **Left VCR button**: rewind 15 seconds.
-- **Hold both VCR buttons for 3 seconds**: shut down.
+- **Hold both VCR buttons for 3 seconds**: plays the CRT switch-off (`interstitials/crt_off.mp4`), then shuts down. With the power switch off it shuts down straight away.
+
+The interstitial clips are made by `interstitials/make_interstitials.py` (needs ffmpeg, numpy and Pillow).
 
 ## Troubleshooting
 

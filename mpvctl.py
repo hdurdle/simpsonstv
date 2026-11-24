@@ -15,6 +15,7 @@ import time
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 VIDEO_DIR = os.environ.get('SIMPSONSTV_VIDEO_DIR', os.path.join(BASE_DIR, 'videos'))
+INTERSTITIAL_DIR = os.environ.get('SIMPSONSTV_INTERSTITIAL_DIR', os.path.join(BASE_DIR, 'interstitials'))
 RUN_DIR = os.environ.get('SIMPSONSTV_RUN_DIR', '/run/simpsonstv')
 SOCKET_PATH = os.path.join(RUN_DIR, 'mpv.sock')
 # Exists while the TV is switched off, so a newly started video starts paused.
@@ -40,6 +41,23 @@ def list_videos():
         for name in os.listdir(VIDEO_DIR)
         if name.lower().endswith('.mp4')
     )
+
+
+def static_clips():
+    """The channel-change static clips (interstitials/static_*.mp4)."""
+    if not os.path.isdir(INTERSTITIAL_DIR):
+        return []
+    return sorted(
+        os.path.join(INTERSTITIAL_DIR, name)
+        for name in os.listdir(INTERSTITIAL_DIR)
+        if name.startswith('static_') and name.lower().endswith('.mp4')
+    )
+
+
+def interstitial(name):
+    """Full path of an interstitial clip, or None if it isn't there."""
+    path = os.path.join(INTERSTITIAL_DIR, name)
+    return path if os.path.isfile(path) else None
 
 
 def mpv_command(video):
@@ -91,3 +109,13 @@ def send(*command):
                         return message
     except (OSError, ValueError):
         return None
+
+
+def ok(reply):
+    return bool(reply) and reply.get('error') == 'success'
+
+
+def get(name):
+    """Read an mpv property; None if mpv isn't running or the property isn't available."""
+    reply = send('get_property', name)
+    return reply.get('data') if ok(reply) else None
