@@ -264,168 +264,74 @@ Wire from button for XXX -> GPIO5
 <a name="instalation"></a>
 # Instalation
 
-1. Install OS to micro SD card. For install OS please use Raspberry PI installer [here](https://www.raspberrypi.com/software/)
-2. Create a file before inserting the micro SD card **wpa_supplicant.conf** in **boot** partition and add to file
-```
-country=US
-ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-update_config=1
+These steps are for a **Raspberry Pi Zero 2 W** running **Raspberry Pi OS Lite** (Bookworm or newer). The video player is **mpv**; the older omxplayer version only ran on Raspberry Pi OS Buster.
 
-network={
-    ssid="NETWORK NAME"
-    psk="NETWORK PASSWORD"
-}
-```
-3. Create a empty file **ssh** before inserting the micro SD card in **boot** partition. For enable SSH server after booting linux
-4. Now you can insert microSD card to RPI and power on. After booting is raspberry-pi automatically connected to WI-FI, with SSH server. After booting you can see IP at the home screen
-<img src="docu/install/ip.jpg" width="768"/>
+1. **Install the OS.** In [Raspberry Pi Imager](https://www.raspberrypi.com/software/) pick:
+   - Device: *Raspberry Pi Zero 2 W*
+   - OS: *Raspberry Pi OS (other) → Raspberry Pi OS Lite (32-bit)*
+   - In *Edit settings*: set a hostname, a username and password, your Wi-Fi network and Wi-Fi country, and on the *Services* tab enable SSH.
 
-Now we can use 2 method for instalation and configuration OS. First method is continue to steps 5 and more.
+   The old `wpa_supplicant.conf` and `ssh` files in the boot partition no longer work, and there is no default `pi` user. Any username works.
 
-Second method is use scripts for install all neccesary package and configuring OS. This method skip steps 5 -> 18. Method is not fully tested, is only experimental.
+2. **Boot and update.** Put the card in the Pi, power on, wait a couple of minutes, then SSH in (`ssh <user>@<hostname>.local`).
 ```
-sudo apt-get install git
+sudo apt update
+sudo apt full-upgrade -y
+sudo reboot
+```
+   Don't run `rpi-update`; it installs pre-release firmware.
+
+3. **Get the code and install.** Clone your copy of this repository into your home folder and run the installer. It installs mpv and the GPIO libraries, adds PWM audio to `/boot/firmware/config.txt`, sets the LCD mode in `/boot/firmware/cmdline.txt` (both are backed up first), and installs the services. It asks before making changes.
+```
+sudo apt install -y git
 cd ~
-git clone https://github.com/johnyHV/simpsonstv
+git clone <repository URL> simpsonstv
 cd simpsonstv
-sudo ./install_01.sh
-```
-
-After reboot RPI
-```
-cd simpsonstv
-sudo ./ install_02.sh
-```
-If you use this method, then after previous commands please continue to [ step 19 ](#step_19).
-
-5. **Update OS**
-```
-sudo apt-get update
-sudo apt-get upgrade
-sudo rpi-update
-sudo apt-get upgrade
+sudo ./install.sh
 sudo reboot
 ```
 
-6. **LCD driver**. go to **/boot/config.txt** and add next lines for enable LCD drivers. Save, and reboot RPI. Manual for installation  manual is [here](https://www.waveshare.com/wiki/4inch_HDMI_LCD)
-
+4. **Settings.** Display rotation, audio device, player mode and the power-switch direction are in `~/simpsonstv/simpsonstv.conf`. After editing it:
 ```
-sudo nano /boot/config.txt
-```
-
-add to end file
-
-```
-hdmi_group=2
-hdmi_mode=87
-hdmi_timings=480 0 40 10 80 800 0 13 3 32 0 0 0 60 0 32000000 3
-dtoverlay=ads7846,cs=1,penirq=25,penirq_pull=2,speed=50000,keep_vref_on=0,swapxy=0,pmax=255,xohms=150,xmin=200,xmax=3900,ymin=200,ymax=3900
-display_rotate=3
-hdmi_drive=1
-hdmi_force_hotplug=1
+sudo systemctl restart tvbutton tvplayer
 ```
 
-7. **LCD driver.** Install drivers for LCD
+5. **Convert videos to mp4.** Use `videos/encode.py` on your computer (it needs `ffmpeg`). It's much faster there than on the Pi. It writes 480p H.264 files to `videos/encoded/`.
 ```
-git clone https://github.com/waveshare/LCD-show.git
-cd LCD-show/
-chmod +x LCD4-800x480-show
-sudo ./LCD4-800x480-show
+python3 encode.py
 ```
-8. **Enable audio.** add to file **/boot/config.txt**
-```
-sudo nano /boot/config.txt
-```
-add to end file
-```
-dtparam=audio=on
-dtoverlay=audremap,enable_jack,pins_18_19
-```
-9. **Enable audio.** Update file **/etc/rc.local**
-```
-sudo nano /etc/rc.local
-```
-add to end file, before **exit 0** line
-```
-raspi-gpio set 18 op dl
-raspi-gpio set 19 op a5 
-raspi-gpio set 8 a2
-raspi-gpio set 7 a2
-```
-10. Update **/boot/cmdline.txt**
-```
-sudo nano /boot/cmdline.txt
-```
-my file contain
-```
-console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet splash fbcon=map:10 fbcon=font:ProFont6x11
-```
-11. **Install package to OS**
-```
-sudo apt-get install omxplayer git mc screen rsync
-```
-12. **Clone repository**
-```
-cd ~
-git clone https://github.com/johnyHV/simpsonstv
-cd simpsonstv
-```
-13. **Service**. Service for management buttons
-```
-sudo cp simpsonstv/services/tvbutton.service /etc/systemd/system/tvbutton.service
-```
-14. **Service**. Service for management video player
-```
-sudo cp simpsonstv/services/tvplayer.service /etc/systemd/system/tvplayer.service
-```
-15. **Update permission for script**
-```
-sudo chmod +x /home/pi/simpsonstv/dbuscontrol.sh
-```
-16. **Version with USB**. Service for auto copy files from USB mass storage devices to RPI flash drive. 
-```
-sudo cp simpsonstv/services/tvautocopy.service /etc/systemd/system/tvautocopy.service
-```
-17. **Version with USB**. Enable autocopy service
-```
-sudo chmod +x /home/pi/simpsonstv/autocopy.sh
-```
-18. **Service**. Enable services
-```
-sudo systemctl enable tvbutton.service
-sudo systemctl enable tvplayer.service
-sudo systemctl enable tvautocopy.service
-```
-<a name="step_19"></a>
-19. **Reboot system**
-```
-sudo reboot
-```
-20. Now we need convert video file to **mp4** format. For this exist python script encode.py stored in **~/simpsonstv/video/**. Video file you can convert on RPI (but it's very tedious and slow) or on the your computer. You can use different SW for converting video file. 
-```
-~/simpsonstv/video/
-sudo python encode.py
-```
-21. **Copy video to RPI**. 
-**Copy via network** For example, you can use **scp** or **winscp**, for copy files via network sfp to RPI. Directory for video
-```
-~/simpsonstv/videos
-```
-**Copy movie from USB**. We need create a folder **simpsonstv** on the USB key in root, and store movies to this folder. After booting linux, and insert USB key is automaticly started script for copy movies from FLASH drive to micro SD card. the LED near the USB port lights up during the copying process. When copying is complete, the LED will turn off and you can disconnect the USB key
+
+6. **Copy videos to the Pi.**
+   - **Over the network**: copy the mp4 files to `~/simpsonstv/videos` with `scp` or WinSCP.
+   - **From a USB stick**: create a folder called **simpsonstv** in the root of the stick and put the mp4 files in it. Plug the stick into the TV. The LED near the USB port lights up while copying and turns off when it's done; then you can unplug the stick. A log (`simpsontv_log.txt`) is written to the stick.
+
+     **Warning:** the copy is a mirror. Videos on the TV that aren't in the stick's `simpsonstv` folder are deleted.
 
 <img src="docu/hw/usb_stick_port.jpg" width="512"/>
 
-22. **Two player scripts** There are currently two existing scripts for two-player functionality. The first script, player.py, is standard and plays random videos. The second script, player-playlist.py, saves the last played video, allowing the device to continue from where it left off after a reboot. If opting for the second script, it's necessary to rename the script
-```
-cd simpsonstv
-mv player.py player-random.py
-mv player-playlist.py player.py
-sudo systemctl restart tvplayer.service
-```
+7. **Two player modes.** Set `PLAYER_SCRIPT` in `simpsonstv.conf`:
+   - `player.py`: plays videos in random order (default)
+   - `player-playlist.py`: plays in name order and continues with the last video after a reboot
+
+## Controls
+
+- **Power switch**: on plays with sound; off pauses the video and mutes the amplifier.
+- **Right VCR button**: next video.
+- **Left VCR button**: rewind 15 seconds.
+- **Hold both VCR buttons for 3 seconds**: shut down.
+
+## Troubleshooting
+
+- Logs: `journalctl -u tvplayer -f`, `journalctl -u tvbutton -f`, `journalctl -u 'tvautocopy@*'`
+- **Black screen**: check the screen's modes with `cat /sys/class/drm/card*-HDMI-A-1/modes`. If mpv reports errors, change `--vo=gpu --gpu-context=drm` to `--vo=drm` in `MPV_ARGS`.
+- **Picture upside down**: change `--video-rotate=270` to `--video-rotate=90`.
+- **No sound**: run `aplay -l` to find the card name, and test with `speaker-test -D plughw:CARD=Headphones -c 1 -t sine`.
+- **Power switch works backwards**: set `POWER_SWITCH_INVERT=1`.
+
 ---
 <a name="images_url"></a>
 # Image
-We can download my RPI ZERO image from my [gdrive](https://drive.google.com/drive/folders/1mnJnrXVBaZO_8UrxD8tn1eNyA690npIP?usp=sharing). I don't tested if is this image compatible with ZERO W or ZERO 2 W
+The old RPI ZERO image on my [gdrive](https://drive.google.com/drive/folders/1mnJnrXVBaZO_8UrxD8tn1eNyA690npIP?usp=sharing) is Raspberry Pi OS Buster with omxplayer. It doesn't match the current code and isn't tested on the Zero 2 W. For a Zero 2 W, follow the installation steps above.
 
 - OS: raspberry-pi OS 32bit
 - username: pi

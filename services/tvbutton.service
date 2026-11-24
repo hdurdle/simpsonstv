@@ -1,11 +1,13 @@
 [Unit]
-Description=tvbutton
-After=network.target
+Description=Simpsons TV power switch and buttons
 
 [Service]
-WorkingDirectory=/home/pi/simpsonstv/
-ExecStart=/usr/bin/python /home/pi/simpsonstv/buttons.py
+WorkingDirectory=@INSTALL_DIR@
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-@INSTALL_DIR@/simpsonstv.conf
+ExecStart=/usr/bin/python3 @INSTALL_DIR@/buttons.py
 Restart=always
+RestartSec=2
 
 [Install]
 WantedBy=multi-user.target

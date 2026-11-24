@@ -1,32 +1,24 @@
-import os
+"""Play every video in the videos folder in random order, forever."""
 import random
 import time
-from subprocess import PIPE, Popen, STDOUT
 
-directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'videos')
-
-videos = []
+import mpvctl
 
 
-def getVideos():
-    global videos
-    videos = []
-    for file in os.listdir(directory):
-        if file.lower().endswith('.mp4'):
-            videos.append(os.path.join(directory, file))
+def main():
+    mpvctl.ensure_run_dir()
+    while True:
+        # Re-read the folder each pass so videos copied from USB get picked up.
+        videos = mpvctl.list_videos()
+        if not videos:
+            print('No videos found in ' + mpvctl.VIDEO_DIR)
+            time.sleep(5)
+            continue
+        random.shuffle(videos)
+        for video in videos:
+            print('Current video: ' + video)
+            mpvctl.play(video)
 
 
-def playVideos():
-    global videos
-    if len(videos) == 0:
-        getVideos()
-        time.sleep(5)
-        return
-    random.shuffle(videos)
-    for video in videos:
-        playProcess = Popen(['omxplayer', '--no-osd', '--win', '00,00,750,480', video])
-        playProcess.wait()
-
-
-while (True):
-    playVideos()
+if __name__ == '__main__':
+    main()

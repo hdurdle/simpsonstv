@@ -1,0 +1,5 @@
+simpsonstv.conf
+LastPlayed.txt
+videos/*.mp4
+videos/encoded/
+__pycache__/

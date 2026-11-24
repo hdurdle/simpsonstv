@@ -1,11 +1,15 @@
 [Unit]
-Description=tvplayer
-After=network.target
+Description=Simpsons TV video player
+After=tvbutton.service sound.target
 
 [Service]
-WorkingDirectory=/home/pi/simpsonstv/
-ExecStart=/usr/bin/python /home/pi/simpsonstv/player.py
+WorkingDirectory=@INSTALL_DIR@
+Environment=PYTHONUNBUFFERED=1
+Environment=PLAYER_SCRIPT=player.py
+EnvironmentFile=-@INSTALL_DIR@/simpsonstv.conf
+ExecStart=/usr/bin/python3 @INSTALL_DIR@/${PLAYER_SCRIPT}
 Restart=always
+RestartSec=2
 
 [Install]
 WantedBy=multi-user.target

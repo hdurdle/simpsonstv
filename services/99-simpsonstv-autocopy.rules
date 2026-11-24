@@ -1,0 +1,2 @@
+# Run the Simpsons TV autocopy when a USB storage device with a filesystem is plugged in.
+ACTION=="add", SUBSYSTEM=="block", ENV{ID_BUS}=="usb", ENV{ID_FS_USAGE}=="filesystem", TAG+="systemd", ENV{SYSTEMD_WANTS}+="tvautocopy@%k.service"

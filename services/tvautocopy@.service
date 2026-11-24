@@ -1,0 +1,11 @@
+[Unit]
+Description=Simpsons TV: copy videos from USB drive %I
+# Started by 99-simpsonstv-autocopy.rules; stops if the stick is pulled out.
+BindsTo=dev-%i.device
+After=dev-%i.device
+
+[Service]
+Type=oneshot
+TimeoutStartSec=infinity
+EnvironmentFile=-@INSTALL_DIR@/simpsonstv.conf
+ExecStart=@INSTALL_DIR@/autocopy.sh %I

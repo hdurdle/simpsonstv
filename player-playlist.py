@@ -1,40 +1,41 @@
+"""Play the videos in name order and remember the current one across reboots."""
 import os
-import random
 import time
-from subprocess import PIPE, Popen, STDOUT
 
-directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'videos')
-last_played_file_name = "LastPlayed.txt"
+import mpvctl
 
-def getVideos():
-    videos = [os.path.join(directory, file) for file in sorted(os.listdir(directory)) if file.lower().endswith('.mp4')]
-    return videos
+LAST_PLAYED_FILE = os.path.join(mpvctl.BASE_DIR, 'LastPlayed.txt')
 
-def saveLastPlayed(video):
-    with open(last_played_file_name, 'w') as file:
+
+def save_last_played(video):
+    with open(LAST_PLAYED_FILE, 'w') as file:
         file.write(video)
 
-def getLastPlayed():
-    if not os.path.exists(last_played_file_name):
+
+def get_last_played():
+    if not os.path.exists(LAST_PLAYED_FILE):
         return ''
-    with open(last_played_file_name, 'r') as file:
-        return file.read()
+    with open(LAST_PLAYED_FILE) as file:
+        return file.read().strip()
 
-def playVideos():
-    videos = getVideos()
-    if not videos:
-        print('No videos found')
-        time.sleep(5)
-        return
-    last_played = getLastPlayed()
-    start_index = 0
-    if last_played in videos:
-        start_index = videos.index(last_played)
-    for video in videos[start_index:]:
-        saveLastPlayed(video)
-        print("Current video: " + video)
-        playProcess = Popen(['omxplayer', '--no-osd', '--win', '00,00,750,480', video])
-        playProcess.wait()
 
-while (True):
-    playVideos()
+def main():
+    mpvctl.ensure_run_dir()
+    while True:
+        videos = mpvctl.list_videos()
+        if not videos:
+            print('No videos found in ' + mpvctl.VIDEO_DIR)
+            time.sleep(5)
+            continue
+        last_played = get_last_played()
+        start_index = videos.index(last_played) if last_played in videos else 0
+        for video in videos[start_index:]:
+            save_last_played(video)
+            print('Current video: ' + video)
+            mpvctl.play(video)
+        # Reached the end of the list: start again from the first video.
+        save_last_played('')
+
+
+if __name__ == '__main__':
+    main()
