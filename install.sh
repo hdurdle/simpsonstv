@@ -19,9 +19,14 @@ CONFIG_TXT="${BOOT_DIR}/config.txt"
 CMDLINE_TXT="${BOOT_DIR}/cmdline.txt"
 MARKER_BEGIN="# >>> simpsonstv >>>"
 MARKER_END="# <<< simpsonstv <<<"
-# Force the Waveshare 4" panel (480x800 portrait, rotated by mpv) and keep the
-# text console off the screen so it doesn't flash between videos.
-CMDLINE_ADD="video=HDMI-A-1:480x800M@60D fbcon=map:10"
+# The Waveshare 4" panel is natively landscape (its EDID prefers 800x480).
+# Keep the HDMI output on at that mode even if hotplug isn't detected ("D"),
+# using the panel's own timings, and keep the text console off the screen so
+# it doesn't flash between videos.
+VIDEO_MODE="video=HDMI-A-1:800x480@60D"
+CMDLINE_ADD="${VIDEO_MODE} fbcon=map:10"
+# Modes set by earlier versions of this script, replaced with VIDEO_MODE
+OLD_VIDEO_MODES="video=HDMI-A-1:480x800M@60D video=HDMI-A-1:800x480M@60D"
 SMB_CONF="/etc/samba/smb.conf"
 SHARE_USER="${SIMPSONSTV_SHARE_USER:-tv}"
 
@@ -124,7 +129,17 @@ EOF
         echo "   updated ${CONFIG_TXT}"
 fi
 
-if grep -qF "video=HDMI-A-1:" "${CMDLINE_TXT}"; then
+old_mode=""
+for mode in ${OLD_VIDEO_MODES}; do
+        if grep -qF -- "${mode}" "${CMDLINE_TXT}"; then
+                old_mode="${mode}"
+        fi
+done
+if [ -n "${old_mode}" ]; then
+        backup "${CMDLINE_TXT}"
+        sed -i "1 s|${old_mode}|${VIDEO_MODE}|" "${CMDLINE_TXT}"
+        echo "   replaced ${old_mode} with ${VIDEO_MODE} in ${CMDLINE_TXT}"
+elif grep -qF "video=HDMI-A-1:" "${CMDLINE_TXT}"; then
         echo "   ${CMDLINE_TXT} already has a video= setting, skipping"
 else
         backup "${CMDLINE_TXT}"

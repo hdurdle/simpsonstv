@@ -3,13 +3,15 @@
 #   sudo systemctl restart simpsonstv
 
 # mpv options for display and audio.
-# - Picture upside down: change --video-rotate=270 to --video-rotate=90
+# - Picture upside down: change --video-rotate=0 to --video-rotate=180.
+#   Sideways: use 90 if the top of the picture is on the left, 270 if it's on
+#   the right (mpv rotates clockwise).
 # - Black screen / mpv errors in `journalctl -u simpsonstv`: try --vo=drm instead of
 #   --vo=gpu --gpu-context=drm
 # - Picture hidden behind the case bezel on one side: add e.g.
 #   --video-margin-ratio-right=0.0625  (the old omxplayer setup used 750 of 800 px)
 # - No sound: check the card name with `aplay -l`
-MPV_ARGS="--vo=gpu --gpu-context=drm --hwdec=auto-safe --video-rotate=270 --ao=alsa --audio-device=alsa/plughw:CARD=Headphones,DEV=0"
+MPV_ARGS="--vo=gpu --gpu-context=drm --hwdec=auto-safe --video-rotate=0 --ao=alsa --audio-device=alsa/plughw:CARD=Headphones,DEV=0"
 
 # Set to 1 if the power switch works backwards (TV plays when switched off).
 POWER_SWITCH_INVERT=0

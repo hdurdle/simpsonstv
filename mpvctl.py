@@ -22,7 +22,7 @@ SOCKET_PATH = os.path.join(RUN_DIR, 'mpv.sock')
 
 # Hardware-specific mpv options; override with MPV_ARGS in simpsonstv.conf.
 DEFAULT_MPV_ARGS = (
-    '--vo=gpu --gpu-context=drm --hwdec=auto-safe --video-rotate=270 '
+    '--vo=gpu --gpu-context=drm --hwdec=auto-safe --video-rotate=0 '
     '--ao=alsa --audio-device=alsa/plughw:CARD=Headphones,DEV=0'
 )
 

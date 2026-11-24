@@ -68,7 +68,7 @@ Until [PR #1](https://github.com/hdurdle/simpsonstv/pull/1) is merged, the new c
 
 - installs **mpv**, **ffmpeg** (to read episode lengths) and the GPIO libraries (**gpiozero**, **lgpio**)
 - turns on **PWM audio** on GPIO18/19 in `/boot/firmware/config.txt`
-- sets the **LCD mode** (480×800) and hides the text console in `/boot/firmware/cmdline.txt`. Both files are backed up first, next to the originals.
+- sets the **LCD mode** (800×480, the screen's own landscape mode) and hides the text console in `/boot/firmware/cmdline.txt`. Both files are backed up first, next to the originals.
 - creates `~/simpsonstv/simpsonstv.conf` with the default settings
 - installs and starts the **simpsonstv** service, which runs at every boot
 - installs **Samba** and shares the `videos` folder on your network as `videos`, with the login **`tv`**. On the first run it **asks you to choose the share's password**. `/etc/samba/smb.conf` is backed up first. It also installs **wsdd**, so the TV shows up under *Network* in Windows File Explorer.
@@ -181,7 +181,7 @@ journalctl -u simpsonstv -f
 The log lists the channels after each scan and every channel change.
 
 - **Black screen:** check the screen's modes with `cat /sys/class/drm/card*-HDMI-A-1/modes`. If mpv reports errors, change `--vo=gpu --gpu-context=drm` to `--vo=drm` in `MPV_ARGS`.
-- **Picture upside down:** change `--video-rotate=270` to `--video-rotate=90`.
+- **Picture upside down or sideways:** change `--video-rotate=0` in `MPV_ARGS`. Use `180` for upside down. For sideways, use `90` if the top of the picture is on the left, or `270` if it is on the right. mpv rotates clockwise.
 - **Picture partly hidden by the case:** add, for example, `--video-margin-ratio-right=0.0625` to `MPV_ARGS`.
 - **No sound:** find the card name with `aplay -l`, and test with `speaker-test -D plughw:CARD=Headphones -c 1 -t sine`.
 - **Power switch works backwards:** set `POWER_SWITCH_INVERT=1`.
