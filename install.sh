@@ -54,7 +54,7 @@ owner="$(stat -c '%U' "${INSTALL_DIR}")"
 
 cat <<EOF
 This will:
-  - install packages: mpv ffmpeg python3-gpiozero python3-lgpio samba wsdd
+  - install packages: mpv ffmpeg python3-gpiozero python3-lgpio python3-numpy samba wsdd
   - back up and edit ${CONFIG_TXT} (PWM audio on GPIO18/19)
   - back up and edit ${CMDLINE_TXT} (add: ${CMDLINE_ADD})
   - install and enable the systemd service simpsonstv
@@ -93,8 +93,9 @@ fi
 
 echo "== Installing packages"
 apt-get update
-# ffmpeg provides ffprobe, used to read episode lengths for the schedule
-apt-get install -y mpv ffmpeg python3-gpiozero python3-lgpio
+# ffmpeg provides ffprobe, used to read episode lengths for the schedule;
+# numpy draws the CRT overlay
+apt-get install -y mpv ffmpeg python3-gpiozero python3-lgpio python3-numpy
 DEBIAN_FRONTEND=noninteractive apt-get install -y samba
 # wsdd announces the Pi to Windows (WS-Discovery) so it appears under Network
 # in File Explorer. Optional: the share works without it.

@@ -66,7 +66,7 @@ Until [PR #1](https://github.com/hdurdle/simpsonstv/pull/1) is merged, the new c
 
 `install.sh` asks before changing anything. It:
 
-- installs **mpv**, **ffmpeg** (to read episode lengths) and the GPIO libraries (**gpiozero**, **lgpio**)
+- installs **mpv**, **ffmpeg** (to read episode lengths), **numpy** (to draw the CRT look) and the GPIO libraries (**gpiozero**, **lgpio**)
 - turns on **PWM audio** on GPIO18/19 in `/boot/firmware/config.txt`
 - sets the **LCD mode** (800×480, the screen's own landscape mode) and hides the text console and cursor in `/boot/firmware/cmdline.txt`. Both files are backed up first, next to the originals.
 - turns off the login prompt on the TV screen (you log in over SSH instead), so no text ever shows between videos. To get it back: `sudo systemctl enable --now getty@tty1`
@@ -161,11 +161,32 @@ Over SSH, `tvctl` does everything the switch and buttons do, so you can test wit
 | `tvctl up` / `tvctl down` | Right / left VCR button (also `tvctl right` / `tvctl left`). |
 | `tvctl switchoff` | Plays the CRT switch-off, then carries on, **without** powering off. For testing. |
 | `tvctl shutdown` | Both buttons held: switch-off, then power off (asks to confirm). |
-| `tvctl status` | Power and why, switch position, current channel, what's on air, all channels. |
+| `tvctl status` | Power and why, switch position, CRT effect, current channel, what's on air, all channels. |
+| `tvctl crt on` / `tvctl crt off` | Turn the CRT look on or off (until the service restarts). |
 
 For example, to test with the switch off: `tvctl on`, then `tvctl up` a few times, then `tvctl status`, then `tvctl auto` when you're done.
 
 The `tvctl on/off` override lasts until `tvctl auto` or the service restarts (for example after a reboot), so the real switch always takes over again. `tvctl` works for the user who owns the `simpsonstv` folder, or with `sudo`. Commands also show up in `journalctl -u simpsonstv`.
+
+## CRT look
+
+A see-through overlay drawn over the picture makes the screen look like an old tube TV:
+
+- **scanlines:** every other row a little darker
+- **phosphor grille:** a faint vertical pattern
+- **vignette:** darker edges
+- **glare:** a soft highlight in the top left
+- **rounded corners**
+
+It's drawn to fit the picture, so it lines up with 4:3 and widescreen episodes. It costs almost nothing to show, because mpv layers it over the video the same way it does on-screen text.
+
+It's on by default. Turn it off for good with `CRT_EFFECT=off` in `simpsonstv.conf`, or try it out with `tvctl crt off` / `tvctl crt on`. To adjust each part, change the `CRT_*` strengths in `simpsonstv.conf` (0 is none, 1 is strongest), then run `sudo systemctl restart simpsonstv`.
+
+To try settings on your computer first, `crt.py` can draw the overlay over any picture (needs numpy and Pillow):
+
+```
+python3 crt.py --preview screenshot.png preview.png --scanlines 0.4 --corners 0.08
+```
 
 ## Static and switch-off clips
 

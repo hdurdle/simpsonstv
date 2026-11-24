@@ -20,6 +20,7 @@ import threading
 import time
 
 import channels
+import crt
 import mpvctl
 
 POWER_SWITCH_PIN = 26    # switch to GND; closed = TV on
@@ -61,6 +62,9 @@ class TV:
         self.override = None      # True/False from `tvctl on/off`; None = follow the switch
         self.last_static = None
         self.clip_lengths = {}
+        crt_on = os.environ.get('CRT_EFFECT', 'on').strip().lower() not in ('off', 'no', '0', 'false')
+        self.crt = crt.CrtOverlay(mpvctl, crt_on, crt.settings_from_env(),
+                                  os.path.join(mpvctl.RUN_DIR, 'crt'))
 
     # --- remembered channel ---------------------------------------------
 
@@ -159,6 +163,7 @@ class TV:
         """Make the screen show what's on air now on the current channel."""
         if not self.power_on:
             return
+        self.crt.update()  # keep the CRT overlay fitted to the picture
         playing = mpvctl.get('path')  # None when mpv is idle
         if mpvctl.is_interstitial(playing):
             return  # static playing; the channel is queued after it
@@ -246,7 +251,8 @@ class TV:
         source = 'tvctl override (tvctl auto to follow the switch)' if self.override is not None \
             else 'power switch'
         lines = ['Power:   %s, set by %s' % (on_off(self.power_on), source),
-                 'Switch:  %s' % on_off(self.switch_on)]
+                 'Switch:  %s' % on_off(self.switch_on),
+                 'CRT:     %s' % on_off(self.crt.enabled)]
         with self.lineup_lock:
             lineup = self.lineup
         channel = self.current_channel(lineup)
@@ -270,7 +276,7 @@ class TV:
 
     def command(self, text):
         """Run a tvctl command. Returns (reply, action to run after replying)."""
-        name = text.strip().lower()
+        name = ' '.join(text.split()).lower()
         if name == 'on':
             self.override = True
             self.update_power()
@@ -296,6 +302,12 @@ class TV:
             return 'Shutting down', self.shutdown
         if name == 'status':
             return self.status(), None
+        if name in ('crt on', 'crt off'):
+            self.crt.set_enabled(name == 'crt on')
+            return 'CRT effect %s (until the service restarts; set CRT_EFFECT in ' \
+                   'simpsonstv.conf to keep it)' % name.split()[1], None
+        if name == 'crt':
+            return 'CRT effect is %s' % ('on' if self.crt.enabled else 'off'), None
         return 'Unknown command: %r (try: tvctl help)' % text.strip(), None
 
 
@@ -362,6 +374,7 @@ def main():
                 print('mpv stopped (exit code %s); restarting' % mpv.returncode)
                 time.sleep(2)
             mpv = mpvctl.start()
+            tv.crt.forget()  # a new mpv has no overlay yet
             last_sync = 0.0
 
         tv.switch_on = power_switch.is_pressed != POWER_SWITCH_INVERT
