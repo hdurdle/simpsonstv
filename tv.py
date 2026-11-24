@@ -30,9 +30,12 @@ AUDIO_PWM_PIN = 19       # PWM audio output (set by the audremap overlay)
 
 SHUTDOWN_HOLD_SECONDS = 3
 POLL_SECONDS = 0.05
-SYNC_SECONDS = 1         # how often to check the screen shows what's on air
+SYNC_SECONDS = 0.5       # how often to check the screen shows what's on air
 RESCAN_SECONDS = 60      # how often to look for new or removed episodes
-DRIFT_SECONDS = 15       # re-tune if playback is this far from the schedule
+# Re-tune if playback is this far from the schedule. Generous, because tuning
+# in starts at the keyframe before the scheduled point (mpv --hr-seek=no),
+# which can be several seconds early on files with sparse keyframes.
+DRIFT_SECONDS = 60
 
 # Set POWER_SWITCH_INVERT=1 in simpsonstv.conf if the switch works backwards.
 POWER_SWITCH_INVERT = os.environ.get('POWER_SWITCH_INVERT', '0') == '1'
@@ -57,6 +60,7 @@ class TV:
         self.switch_on = None     # physical power switch position
         self.override = None      # True/False from `tvctl on/off`; None = follow the switch
         self.last_static = None
+        self.clip_lengths = {}
 
     # --- remembered channel ---------------------------------------------
 
@@ -111,29 +115,45 @@ class TV:
         with self.lineup_lock:
             lineup = self.lineup
         message = 'No channels yet'
+        channel = None
         if lineup:
             current = self.current_channel(lineup)
             number = (lineup.index(current) + step) % len(lineup)
-            self.channel_name = lineup[number].name
+            channel = lineup[number]
+            self.channel_name = channel.name
             self.save_state()
             message = 'Channel %d: %s' % (number + 1, self.channel_name)
             print(message)
         if self.power_on:
-            self.play_static()  # sync() tunes in once the static ends
+            self.play_static(then=channel)
         else:
             message += ' (TV is off)'
         return message
 
     # --- what's on screen -----------------------------------------------
 
-    def play_static(self):
+    def clip_length(self, clip):
+        if clip not in self.clip_lengths:
+            self.clip_lengths[clip] = channels.probe_duration(clip) or 1.0
+        return self.clip_lengths[clip]
+
+    def play_static(self, then=None):
+        """Play a burst of static. With a channel, queue that channel's
+        programme straight after it, starting where it will be once the static
+        ends, so there's no gap."""
         clips = mpvctl.static_clips()
         if not clips:
-            mpvctl.send('stop')
+            if then is not None:
+                mpvctl.play(then.upcoming(self.clock(), 2))
+            else:
+                mpvctl.send('stop')
             return
         choices = [clip for clip in clips if clip != self.last_static] or clips
         self.last_static = random.choice(choices)
-        mpvctl.load(self.last_static)
+        items = [(self.last_static, None)]
+        if then is not None:
+            items += then.upcoming(self.clock() + self.clip_length(self.last_static), 2)
+        mpvctl.play(items)
 
     def sync(self):
         """Make the screen show what's on air now on the current channel."""
@@ -141,18 +161,31 @@ class TV:
             return
         playing = mpvctl.get('path')  # None when mpv is idle
         if mpvctl.is_interstitial(playing):
-            return  # static still playing; tune in when it ends
+            return  # static playing; the channel is queued after it
         channel = self.current_channel()
         if channel is None:
             if not playing:
                 self.play_static()  # nothing to watch yet: snow
             return
-        episode, offset = channel.on_air(self.clock())
+        now = self.clock()
+        episode, offset = channel.on_air(now)
         if playing == episode:
             position = mpvctl.get('time-pos')
             if position is None or abs(position - offset) < DRIFT_SECONDS:
+                self.keep_next_queued(channel, now)
                 return
-        mpvctl.load(episode, start_at=offset)
+        # Tune in, with the next episode queued so it follows on seamlessly.
+        mpvctl.play(channel.upcoming(now, 2))
+
+    @staticmethod
+    def keep_next_queued(channel, now):
+        """Once the last queued item is playing, queue the episode after it."""
+        count = mpvctl.get('playlist-count')
+        position = mpvctl.get('playlist-pos')
+        if count is None or position is None or position < count - 1:
+            return
+        mpvctl.send('playlist-clear')  # drop played entries; keeps the current one
+        mpvctl.send(*mpvctl.loadfile_command(channel.upcoming(now, 2)[1][0], 'append'))
 
     # --- power and shutdown ---------------------------------------------
 

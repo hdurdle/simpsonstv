@@ -96,9 +96,18 @@ class Channel:
 
     def on_air(self, now):
         """(episode path, seconds into it) that this channel is showing at time `now`."""
+        return self.upcoming(now, 1)[0]
+
+    def upcoming(self, now, count=2):
+        """What's on at `now` and the episodes after it, as a list of
+        (path, seconds to start at): the first part-way through, the rest from
+        the beginning (None)."""
         position = (now + self.stagger) % self.length
         index = bisect.bisect_right(self.starts, position) - 1
-        return self.paths[index], position - self.starts[index]
+        items = [(self.paths[index], position - self.starts[index])]
+        for step in range(1, count):
+            items.append((self.paths[(index + step) % len(self.paths)], None))
+        return items
 
     def __repr__(self):
         return 'Channel(%r, %d episodes, %.0f min loop)' % (self.name, len(self.paths), self.length / 60)

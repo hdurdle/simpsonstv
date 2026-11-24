@@ -8,6 +8,7 @@ from simpsonstv.conf (see simpsonstv.conf.example).
 """
 import json
 import os
+import re
 import shlex
 import socket
 import subprocess
@@ -60,6 +61,19 @@ def start():
     args = [
         'mpv',
         '--idle=yes',
+        # Keep the video output open (black) between files. Otherwise mpv hands
+        # the screen back to the text console whenever nothing is playing,
+        # e.g. between the static and the next channel.
+        '--force-window=yes',
+        # No on-screen controls: they'd draw mpv's logo and "Drop files or
+        # URLs to play here" on that idle screen. Plain black instead.
+        '--osc=no',
+        # Start mid-episode at the nearest keyframe instead of decoding up to
+        # the exact second: tuning in is instant, a few seconds early is fine.
+        '--hr-seek=no',
+        # Open the next queued file while the current one plays, so the
+        # change from static to channel (and episode to episode) is quick.
+        '--prefetch-playlist=yes',
         '--fullscreen',
         '--osd-level=0',
         '--input-terminal=no',
@@ -71,9 +85,21 @@ def start():
     deadline = time.monotonic() + 15
     while time.monotonic() < deadline and process.poll() is None:
         if ok(send('get_property', 'idle-active')):
+            detect_loadfile_syntax()
             break
         time.sleep(0.2)
     return process
+
+
+# mpv 0.38 added an <index> argument to loadfile, before the per-file options.
+NEW_LOADFILE_SYNTAX = True
+
+
+def detect_loadfile_syntax():
+    global NEW_LOADFILE_SYNTAX
+    match = re.search(r'(\d+)\.(\d+)', get('mpv-version') or '')
+    if match:
+        NEW_LOADFILE_SYNTAX = (int(match.group(1)), int(match.group(2))) >= (0, 38)
 
 
 def send(*command):
@@ -111,7 +137,32 @@ def get(name):
     return reply.get('data') if ok(reply) else None
 
 
+def loadfile_command(path, mode, start_at=None):
+    command = ['loadfile', path, mode]
+    if start_at:
+        options = 'start=%.2f' % start_at
+        command += [-1, options] if NEW_LOADFILE_SYNTAX else [options]
+    return command
+
+
+def play(items):
+    """Replace the playlist with `items`, a list of (path, seconds to start at or None).
+
+    The first plays straight away; the rest follow on with no gap.
+    """
+    for number, (path, start_at) in enumerate(items):
+        mode = 'replace' if number == 0 else 'append'
+        reply = send(*loadfile_command(path, mode, start_at))
+        if not ok(reply) and start_at:
+            # If this mpv rejects the start option, play from the beginning
+            # rather than show nothing.
+            print('mpv refused start=%.0f for %s; playing from the start' % (start_at, path))
+            reply = send(*loadfile_command(path, mode))
+        if number == 0 and not ok(reply):
+            return False
+    return True
+
+
 def load(path, start_at=None):
     """Replace whatever is playing with `path`, optionally starting part-way in."""
-    send('set', 'start', 'none' if start_at is None else '%.2f' % start_at)
-    return ok(send('loadfile', path, 'replace'))
+    return play([(path, start_at)])

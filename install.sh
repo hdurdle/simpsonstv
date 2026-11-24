@@ -21,10 +21,11 @@ MARKER_BEGIN="# >>> simpsonstv >>>"
 MARKER_END="# <<< simpsonstv <<<"
 # The Waveshare 4" panel is natively landscape (its EDID prefers 800x480).
 # Keep the HDMI output on at that mode even if hotplug isn't detected ("D"),
-# using the panel's own timings, and keep the text console off the screen so
-# it doesn't flash between videos.
+# using the panel's own timings.
 VIDEO_MODE="video=HDMI-A-1:800x480@60D"
-CMDLINE_ADD="${VIDEO_MODE} fbcon=map:10"
+CMDLINE_ADD="${VIDEO_MODE}"
+# Keep the text console and its cursor off the TV screen.
+CONSOLE_OPTIONS="fbcon=map:10 vt.global_cursor_default=0"
 # Modes set by earlier versions of this script, replaced with VIDEO_MODE
 OLD_VIDEO_MODES="video=HDMI-A-1:480x800M@60D video=HDMI-A-1:800x480M@60D"
 SMB_CONF="/etc/samba/smb.conf"
@@ -146,6 +147,25 @@ else
         # cmdline.txt must stay a single line
         sed -i "1 s|\$| ${CMDLINE_ADD}|" "${CMDLINE_TXT}"
         echo "   updated ${CMDLINE_TXT}"
+fi
+
+missing=""
+for option in ${CONSOLE_OPTIONS}; do
+        if ! grep -qwF -- "${option}" "${CMDLINE_TXT}"; then
+                missing="${missing} ${option}"
+        fi
+done
+if [ -n "${missing}" ]; then
+        backup "${CMDLINE_TXT}"
+        sed -i "1 s|\$|${missing}|" "${CMDLINE_TXT}"
+        echo "   added${missing} to ${CMDLINE_TXT}"
+fi
+
+# No login prompt on the TV screen (log in over SSH instead), so nothing is
+# drawn on the console. Undo with: sudo systemctl enable --now getty@tty1
+if systemctl is-enabled --quiet getty@tty1 2>/dev/null; then
+        systemctl disable getty@tty1
+        echo "   turned off the login prompt on the TV screen (getty@tty1)"
 fi
 
 echo "== Settings"

@@ -68,7 +68,8 @@ Until [PR #1](https://github.com/hdurdle/simpsonstv/pull/1) is merged, the new c
 
 - installs **mpv**, **ffmpeg** (to read episode lengths) and the GPIO libraries (**gpiozero**, **lgpio**)
 - turns on **PWM audio** on GPIO18/19 in `/boot/firmware/config.txt`
-- sets the **LCD mode** (800×480, the screen's own landscape mode) and hides the text console in `/boot/firmware/cmdline.txt`. Both files are backed up first, next to the originals.
+- sets the **LCD mode** (800×480, the screen's own landscape mode) and hides the text console and cursor in `/boot/firmware/cmdline.txt`. Both files are backed up first, next to the originals.
+- turns off the login prompt on the TV screen (you log in over SSH instead), so no text ever shows between videos. To get it back: `sudo systemctl enable --now getty@tty1`
 - creates `~/simpsonstv/simpsonstv.conf` with the default settings
 - installs and starts the **simpsonstv** service, which runs at every boot
 - installs **Samba** and shares the `videos` folder on your network as `videos`, with the login **`tv`**. On the first run it **asks you to choose the share's password**. `/etc/samba/smb.conf` is backed up first. It also installs **wsdd**, so the TV shows up under *Network* in Windows File Explorer.
