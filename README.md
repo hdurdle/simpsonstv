@@ -71,6 +71,7 @@ Until [PR #1](https://github.com/hdurdle/simpsonstv/pull/1) is merged, the new c
 - sets the **LCD mode** (480×800) and hides the text console in `/boot/firmware/cmdline.txt`. Both files are backed up first, next to the originals.
 - creates `~/simpsonstv/simpsonstv.conf` with the default settings
 - installs and starts the **tvplayer** and **tvbutton** services, which run at every boot
+- installs **Samba** and shares the `videos` folder on your network as `videos`, **with no password** (see the next step). `/etc/samba/smb.conf` is backed up first.
 
 It's safe to run again (for example after `git pull`); changes it has already made aren't repeated.
 
@@ -83,13 +84,34 @@ cd videos
 python3 encode.py
 ```
 
-**Copy** the mp4 files to `~/simpsonstv/videos` on the Pi over the network, with `scp` or WinSCP:
+**Upload** them to the TV's network share, in **one folder per show**. Season folders inside a show are fine too:
 
 ```
-scp videos/encoded/*.mp4 <username>@<hostname>.local:~/simpsonstv/videos/
+videos
+├── The Simpsons
+│   ├── S01E01.mp4
+│   └── S01E02.mp4
+└── Futurama
+    └── S01E01.mp4
 ```
 
-New videos are picked up automatically; no restart needed.
+Open the share from your computer:
+
+- **Windows:** in File Explorer's address bar, type `\\<hostname>.local\videos` (for example `\\simpsonstv.local\videos`).
+- **Mac:** in Finder, choose *Go → Connect to Server*, enter `smb://<hostname>.local/videos`, and connect as **Guest**.
+- **Linux:** `smb://<hostname>.local/videos` in your file manager.
+
+New episodes are picked up automatically; no restart needed. If the TV reaches an episode that's still copying, it may skip it or stop early.
+
+**The share has no password.** Anyone on your local network can add, rename and delete episodes. It only accepts connections from private (home network) addresses, never from the internet.
+
+**Windows 11 says "You can't access this shared folder" or asks for a password:** Windows blocks password-free shares by default. To allow them, run this once in PowerShell as administrator:
+
+```
+Set-SmbClientConfiguration -EnableInsecureGuestLogons $true -RequireSecuritySignature $false
+```
+
+This setting applies to every share that PC connects to, not just the TV's. If you'd rather not change it, copy files with `scp` or WinSCP instead (`scp *.mp4 <username>@<hostname>.local:"~/simpsonstv/videos/The Simpsons/"`).
 
 ## 6. Settings
 
@@ -101,7 +123,7 @@ sudo systemctl restart tvbutton tvplayer
 
 | Setting | What it does |
 |---|---|
-| `PLAYER_SCRIPT` | `player.py` plays in random order (default). `player-playlist.py` plays in name order and continues from the last video after a reboot. |
+| `PLAYER_SCRIPT` | `player.py` plays all shows mixed together in random order (default). `player-playlist.py` plays show by show, in name order, and continues from the last episode after a reboot. |
 | `MPV_ARGS` | Display and audio options for mpv: rotation, video output, sound card. See *Troubleshooting* below. |
 | `POWER_SWITCH_INVERT` | Set to `1` if the TV plays when switched off. |
 
@@ -136,7 +158,8 @@ journalctl -u tvbutton -f
 - **Picture partly hidden by the case:** add, for example, `--video-margin-ratio-right=0.0625` to `MPV_ARGS`.
 - **No sound:** find the card name with `aplay -l`, and test with `speaker-test -D plughw:CARD=Headphones -c 1 -t sine`.
 - **Power switch works backwards:** set `POWER_SWITCH_INVERT=1`.
-- **"No videos found" in the log:** check that the mp4 files are in `~/simpsonstv/videos`.
+- **"No videos found" in the log:** check that the mp4 files are in `~/simpsonstv/videos` or one of its show folders.
+- **Can't connect to the share:** check Samba is running with `systemctl status smbd`, and see the Windows 11 note in step 5. If your computer is on an unusual network range, adjust `hosts allow` in the `simpsonstv` block of `/etc/samba/smb.conf`, then run `sudo systemctl restart smbd`.
 
 ## Updating
 

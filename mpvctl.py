@@ -33,14 +33,21 @@ def ensure_run_dir():
 
 
 def list_videos():
-    """Return the full paths of all .mp4 files in the video folder, sorted by name."""
-    if not os.path.isdir(VIDEO_DIR):
-        return []
-    return sorted(
-        os.path.join(VIDEO_DIR, name)
-        for name in os.listdir(VIDEO_DIR)
-        if name.lower().endswith('.mp4')
-    )
+    """Return the full paths of all .mp4 files in the video folder and its
+    subfolders (one per show), sorted by path so each show's episodes are in order.
+
+    Hidden files and folders are skipped, which also skips the "._" files
+    macOS leaves on network shares.
+    """
+    videos = []
+    for folder, subfolders, files in os.walk(VIDEO_DIR):
+        subfolders[:] = [name for name in subfolders if not name.startswith('.')]
+        videos.extend(
+            os.path.join(folder, name)
+            for name in files
+            if name.lower().endswith('.mp4') and not name.startswith('.')
+        )
+    return sorted(videos)
 
 
 def static_clips():

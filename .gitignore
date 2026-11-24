@@ -1,5 +1,6 @@
 simpsonstv.conf
 LastPlayed.txt
-videos/*.mp4
-videos/encoded/
+# Episodes (one folder per show, uploaded over the network); keep only the encoder script
+videos/*
+!videos/encode.py
 __pycache__/

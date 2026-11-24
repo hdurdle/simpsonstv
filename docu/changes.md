@@ -7,6 +7,7 @@
 - Buttons rewritten with gpiozero. The power switch sets pause and mute explicitly, rewind can't go past the start, and the both-buttons shutdown works (hold for 3 seconds).
 - Channel-change **static** plays when you press next, and a **CRT switch-off** plays before shutdown (`interstitials/`).
 - Fixes: the random player picks up new videos; the playlist player no longer repeats the last video forever.
+- Episodes are uploaded to a password-free **Samba network share** (`videos`), in one folder per show; the player finds episodes in subfolders.
 - Removed: USB stick autocopy and its LED.
 
 ## johnyHV's version
