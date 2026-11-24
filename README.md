@@ -149,6 +149,23 @@ Things to know:
 
 The audio amplifier uses GPIO19 (audio) and GPIO13 (mute). Wiring details are in [docu/hardware.md](docu/hardware.md).
 
+## Control from the command line (test mode)
+
+Over SSH, `tvctl` does everything the switch and buttons do, so you can test without touching the TV:
+
+| Command | Same as |
+|---|---|
+| `tvctl on` / `tvctl off` | Power switch on / off. Overrides the real switch until `tvctl auto`. |
+| `tvctl auto` | Follow the physical power switch again. |
+| `tvctl up` / `tvctl down` | Right / left VCR button (also `tvctl right` / `tvctl left`). |
+| `tvctl switchoff` | Plays the CRT switch-off, then carries on, **without** powering off. For testing. |
+| `tvctl shutdown` | Both buttons held: switch-off, then power off (asks to confirm). |
+| `tvctl status` | Power and why, switch position, current channel, what's on air, all channels. |
+
+For example, to test with the switch off: `tvctl on`, then `tvctl up` a few times, then `tvctl status`, then `tvctl auto` when you're done.
+
+The `tvctl on/off` override lasts until `tvctl auto` or the service restarts (for example after a reboot), so the real switch always takes over again. `tvctl` works for the user who owns the `simpsonstv` folder, or with `sudo`. Commands also show up in `journalctl -u simpsonstv`.
+
 ## Static and switch-off clips
 
 The channel-change static (`interstitials/static_*.mp4`) and the switch-off (`interstitials/crt_off.mp4`) are included. To change them, run `interstitials/make_interstitials.py` on your computer (needs ffmpeg, numpy and Pillow). `--help` lists the options, such as more variants, the maximum length, or the full 800 px screen width.

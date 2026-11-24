@@ -6,6 +6,7 @@
 - One installer (`install.sh`), one service (`simpsonstv`) and a settings file (`simpsonstv.conf`).
 - **Live channels** (`tv.py`, `channels.py`): each show folder is a channel airing its episodes in order on a real-time schedule. Changing channel joins whatever is on now. The TV remembers its channel.
 - **Controls:** the VCR buttons are channel up and down. The power switch turns sound and picture off while the channels keep going. Holding both buttons for 3 seconds shuts down.
+- **`tvctl`** command-line control (test mode): power on/off (overriding the switch), channel up/down, test switch-off, shutdown and status, over SSH.
 - Channel-change **static** plays between channels, and a **CRT switch-off** plays before shutdown (`interstitials/`).
 - Episodes are uploaded to a **Samba network share** (`videos`, login `tv` with a password chosen at install), in one folder per show.
 - Removed: USB stick autocopy and its LED; the random and playlist players (`player.py`, `player-playlist.py`) and rewind, all replaced by live channels.

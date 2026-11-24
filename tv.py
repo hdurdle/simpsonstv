@@ -7,10 +7,14 @@
   stopped. The channels keep going, so switching back on rejoins them live.
 - Right VCR button (GPIO6): channel up.  Left VCR button (GPIO5): channel down.
 - Hold both VCR buttons for 3 seconds: CRT switch-off animation, then shut down.
+
+Everything can also be driven from the command line with tvctl (tvctl.py),
+which talks to this process over a control socket; see `tvctl help`.
 """
 import json
 import os
 import random
+import socket
 import subprocess
 import threading
 import time
@@ -35,6 +39,7 @@ POWER_SWITCH_INVERT = os.environ.get('POWER_SWITCH_INVERT', '0') == '1'
 
 STATE_FILE = os.path.join(mpvctl.CACHE_DIR, 'state.json')
 DURATIONS_FILE = os.path.join(mpvctl.CACHE_DIR, 'durations.json')
+CONTROL_SOCKET = os.path.join(mpvctl.RUN_DIR, 'control.sock')
 
 
 def pinctrl(*args):
@@ -49,6 +54,8 @@ class TV:
         self.lineup_lock = threading.Lock()
         self.channel_name = self.load_state()
         self.power_on = False
+        self.switch_on = None     # physical power switch position
+        self.override = None      # True/False from `tvctl on/off`; None = follow the switch
         self.last_static = None
 
     # --- remembered channel ---------------------------------------------
@@ -100,16 +107,22 @@ class TV:
         return lineup[0]  # remembered channel is gone (or first start)
 
     def change_channel(self, step):
+        """Channel up (+1) or down (-1). Returns a description for tvctl."""
         with self.lineup_lock:
             lineup = self.lineup
+        message = 'No channels yet'
         if lineup:
             current = self.current_channel(lineup)
             number = (lineup.index(current) + step) % len(lineup)
             self.channel_name = lineup[number].name
             self.save_state()
-            print('Channel %d: %s' % (number + 1, self.channel_name))
+            message = 'Channel %d: %s' % (number + 1, self.channel_name)
+            print(message)
         if self.power_on:
             self.play_static()  # sync() tunes in once the static ends
+        else:
+            message += ' (TV is off)'
+        return message
 
     # --- what's on screen -----------------------------------------------
 
@@ -143,6 +156,15 @@ class TV:
 
     # --- power and shutdown ---------------------------------------------
 
+    def wanted_power(self):
+        return self.override if self.override is not None else bool(self.switch_on)
+
+    def update_power(self, force=False):
+        """Turn the TV on or off to match the switch, or the tvctl override."""
+        wanted = self.wanted_power()
+        if force or wanted != self.power_on:
+            self.set_power(wanted)
+
     def set_power(self, on):
         self.power_on = on
         if on:
@@ -170,11 +192,112 @@ class TV:
         while time.monotonic() < deadline and mpvctl.get('eof-reached') is not True:
             time.sleep(0.1)
 
+    def test_switch_off(self):
+        """Play the switch-off without powering off, then carry on watching."""
+        self.play_switch_off()
+        mpvctl.send('set', 'keep-open', 'no')
+        mpvctl.send('stop')
+        self.sync()
+
     def shutdown(self):
         print('Power off')
         if self.power_on:
             self.play_switch_off()
         subprocess.run(['systemctl', 'poweroff'], check=False)
+
+    # --- tvctl commands ---------------------------------------------------
+
+    def status(self):
+        def on_off(value):
+            return 'on' if value else 'off'
+        source = 'tvctl override (tvctl auto to follow the switch)' if self.override is not None \
+            else 'power switch'
+        lines = ['Power:   %s, set by %s' % (on_off(self.power_on), source),
+                 'Switch:  %s' % on_off(self.switch_on)]
+        with self.lineup_lock:
+            lineup = self.lineup
+        channel = self.current_channel(lineup)
+        if channel is None:
+            lines.append('Channel: none (no videos found yet)')
+        else:
+            episode, offset = channel.on_air(self.clock())
+            lines.append('Channel: %d %s' % (lineup.index(channel) + 1, channel.name))
+            lines.append('On air:  %s, %d:%02d in' % (
+                os.path.relpath(episode, mpvctl.VIDEO_DIR), offset // 60, offset % 60))
+        playing = mpvctl.get('path')
+        lines.append('Playing: %s' % (os.path.basename(playing) if playing else 'nothing'))
+        lines.append('Channels:')
+        for number, item in enumerate(lineup, 1):
+            count = len(item.paths)
+            lines.append('  %s %d %s (%d episode%s)' % (
+                '>' if item is channel else ' ', number, item.name, count, '' if count == 1 else 's'))
+        if not lineup:
+            lines.append('  none')
+        return '\n'.join(lines)
+
+    def command(self, text):
+        """Run a tvctl command. Returns (reply, action to run after replying)."""
+        name = text.strip().lower()
+        if name == 'on':
+            self.override = True
+            self.update_power()
+            return 'TV on (power switch ignored until: tvctl auto)', None
+        if name == 'off':
+            self.override = False
+            self.update_power()
+            return 'TV off (power switch ignored until: tvctl auto)', None
+        if name == 'auto':
+            self.override = None
+            self.update_power()
+            return 'Following the power switch, which is %s' % ('on' if self.switch_on else 'off'), None
+        if name in ('up', 'right'):
+            return self.change_channel(+1), None
+        if name in ('down', 'left'):
+            return self.change_channel(-1), None
+        if name == 'switchoff':
+            if not self.power_on:
+                return 'The TV is off; turn it on first (tvctl on)', None
+            self.test_switch_off()
+            return 'Played the switch-off; still running', None
+        if name in ('shutdown', 'both'):
+            return 'Shutting down', self.shutdown
+        if name == 'status':
+            return self.status(), None
+        return 'Unknown command: %r (try: tvctl help)' % text.strip(), None
+
+
+def open_control_socket():
+    """Socket for tvctl, usable by the owner of the install folder (and root)."""
+    if os.path.exists(CONTROL_SOCKET):
+        os.remove(CONTROL_SOCKET)
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    server.bind(CONTROL_SOCKET)
+    os.chown(CONTROL_SOCKET, os.stat(mpvctl.BASE_DIR).st_uid, -1)
+    os.chmod(CONTROL_SOCKET, 0o600)
+    server.listen(4)
+    server.setblocking(False)
+    return server
+
+
+def serve_commands(server, tv):
+    """Answer any waiting tvctl commands without blocking the button loop."""
+    while True:
+        try:
+            connection, _ = server.accept()
+        except (BlockingIOError, InterruptedError):
+            return
+        after = None
+        with connection:
+            try:
+                connection.settimeout(2)
+                text = connection.recv(1024).decode('utf-8', 'replace')
+                print('tvctl: ' + text.strip())
+                reply, after = tv.command(text)
+                connection.sendall((reply + '\n').encode('utf-8'))
+            except OSError as error:
+                print('tvctl connection failed: %s' % error)
+        if after:
+            after()
 
 
 def main():
@@ -188,6 +311,7 @@ def main():
     mpvctl.ensure_dirs()
     tv = TV(amplifier)
     threading.Thread(target=tv.scan_forever, daemon=True).start()
+    control = open_control_socket()
 
     mpv = None
     up_was_pressed = False
@@ -195,7 +319,7 @@ def main():
     both_pressed_since = None
     combo_used = False  # both buttons were pressed together; ignore the releases
     last_sync = 0.0
-    switch_was_on = None
+    first_pass = True
 
     while True:
         now = time.monotonic()
@@ -207,10 +331,11 @@ def main():
             mpv = mpvctl.start()
             last_sync = 0.0
 
-        switch_on = power_switch.is_pressed != POWER_SWITCH_INVERT
-        if switch_on != switch_was_on:
-            switch_was_on = switch_on
-            tv.set_power(switch_on)
+        tv.switch_on = power_switch.is_pressed != POWER_SWITCH_INVERT
+        tv.update_power(force=first_pass)  # follows the switch unless tvctl overrides it
+        first_pass = False
+
+        serve_commands(control, tv)
 
         up_pressed = up_button.is_pressed
         down_pressed = down_button.is_pressed

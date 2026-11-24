@@ -164,6 +164,9 @@ done
 sed "s|@INSTALL_DIR@|${INSTALL_DIR}|g" "${INSTALL_DIR}/services/simpsonstv.service" \
         > /etc/systemd/system/simpsonstv.service
 echo "   installed /etc/systemd/system/simpsonstv.service"
+chmod +x "${INSTALL_DIR}/tvctl.py"
+ln -sf "${INSTALL_DIR}/tvctl.py" /usr/local/bin/tvctl
+echo "   installed the tvctl command (try: tvctl status)"
 
 systemctl daemon-reload
 udevadm control --reload
