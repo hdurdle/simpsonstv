@@ -62,8 +62,6 @@ sudo ./install.sh
 sudo reboot
 ```
 
-Until [PR #1](https://github.com/hdurdle/simpsonstv/pull/1) is merged, the new code is on a branch, so clone with `git clone -b pi-zero-2w-mpv ...` instead.
-
 `install.sh` asks before changing anything. It:
 
 - installs **mpv**, **ffmpeg** (to read episode lengths), **numpy** (to draw the CRT look) and the GPIO libraries (**gpiozero**, **lgpio**)
