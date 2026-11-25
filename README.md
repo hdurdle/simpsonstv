@@ -1,438 +1,222 @@
+# Simpsons TV (Raspberry Pi Zero 2 W)
 
-The original project was created by the user buba447. Manual is [here](https://withrow.io/simpsons-tv-build-guide) and source is [here](https://github.com/buba447/simpsonstv). Original 3D model is [here](https://www.thingiverse.com/thing:4943159)
+A tiny TV that works like an old analogue set. Each show is a **channel** that keeps airing in real time, whether you're watching it or not. Press the VCR buttons to flick through channels (with static), and hold both to switch off with an old CRT "dot" effect.
 
-Second user created new 3D model for 4" Waveshare HDMI display. Original 3D model is [here](https://www.thingiverse.com/thing:5019648)
+This version runs on a **Raspberry Pi Zero 2 W** with current **Raspberry Pi OS Lite**, using **mpv** to play the videos.
 
-Presentation video is [here](https://www.youtube.com/watch?v=3tjLVFxXQzM)
+- **Building the TV** (parts, 3D model, wiring): [docu/hardware.md](docu/hardware.md)
+- **What's changed** from earlier versions: [docu/changes.md](docu/changes.md)
 
----
-# Manual Content
-1. [ My changes ](#my_changes)
-2. [ 3D model ](#3d_model)
-3. [ HW parts ](#hw_parts)
-4. [ HW construction ](#hw_construction)
-5. [ Instalation ](#instalation)
-6. [ Image ](#images_url)
-7. [ How to use ](#howtouse)
+Credits: the original project is by buba447 ([build guide](https://withrow.io/simpsons-tv-build-guide), [source](https://github.com/buba447/simpsonstv), [3D model](https://www.thingiverse.com/thing:4943159)). The 3D model for the 4" Waveshare HDMI display is [here](https://www.thingiverse.com/thing:5019648). johnyHV added the VCR buttons and more ([source](https://github.com/johnyHV/simpsonstv), [video](https://www.youtube.com/watch?v=3tjLVFxXQzM)).
 
 ---
-<a name="my_changes"></a>
-# My changes
 
-My changes, all tested on the RPI ZERO:
-- added pause video, when is button not pulled.
-- added mute audio amplifier if is button not pulled
-- minor improvements to 3D models
-- added button to 3D model VCR
-- used different speaker
-- design improvement. is more solid
-- added space for USB port in the 3D model, and script for autocopy movie from USB mass storage devices to RPI 
-- added feature "next movie" for right button on the VCR
-- added feature rewid 15second back for the left button on the VCR
-- added usb A connector for autocopy movie from USB flash drive to micro SD card
-- new scriprt and service for autocopy movie from USB stick to micro SD card
-- added second player script player-playlist.py. This script saving last played video, and after reboot can continue playing last video 
+## 1. Which OS to install
 
-# TODO
-- add continue playing the last movie
+Install **Raspberry Pi OS Lite (32-bit)**. That's the current release with no desktop.
 
----
-<a name="3d_model"></a>
-# 3D model
+- **Lite:** the TV doesn't need a desktop, and leaving it out saves memory and boot time on the Zero 2 W.
+- **32-bit:** it uses less memory than 64-bit, which matters with 512 MB. 64-bit also works.
+- **Not "Legacy" / Buster:** the older versions of this project used omxplayer, which only runs on Raspberry Pi OS Buster. Buster no longer gets updates, and this version doesn't need it.
 
-My 3D model is stored on the [Printables](https://www.prusaprinters.org/prints/90361-simpsons-tv) page
+## 2. Write the SD card
 
----
-<a name="hw_parts"></a>
-# HW parts
+Use [Raspberry Pi Imager](https://www.raspberrypi.com/software/):
 
-- 1k potentiometer [here](https://www.tme.eu/en/details/pc16bu-1k-lin/cond-plastic-single-turn-potentiometers/omeg/)
-<img src="docu/HW_parts/potentiometer.jpg" width="256"/>
+1. **Device:** Raspberry Pi Zero 2 W
+2. **OS:** Raspberry Pi OS (other) → **Raspberry Pi OS Lite (32-bit)**
+3. **Storage:** your micro SD card
+4. When asked, choose **Edit settings** and set:
+   - a **hostname** (for example `simpsonstv`)
+   - a **username and password**; any username works
+   - your **Wi-Fi** network and **Wi-Fi country**
+   - on the **Services** tab, **enable SSH**
 
-- 7x7mm switch [here](https://www.aliexpress.com/item/32704922363.html)
-<img src="docu/HW_parts/switch_7x7.jpg" width="256"/>
+Older guides say to put `wpa_supplicant.conf` and `ssh` files on the boot partition. That no longer works; use the Imager settings instead.
 
-- 4" HDMI Waveshare LCD 800x400 [here](https://rlx.sk/sk/9-5-lcd-display/5454-4inch-hdmi-lcd-800480-ips-waveshare-4-touch-screen-lcd-hdmi-interface-ips-screen-designed-for-raspberry-pi-12030.html)
-<img src="docu/HW_parts/lcd.jpg" width="256"/>
+## 3. First boot and update
 
-- HDMI connector DIY [here](https://rpishop.cz/redukce/2176-waveshare-mini-hdmi-adapter-pro-diy-hdmi-kabel.html)
-<img src="docu/HW_parts/HDMI_connector.jpg" width="256"/>
-
-- MINI HDMI connector DIY [here](https://rpishop.cz/redukce/1205-waveshare-hdmi-adapter-pro-diy-hdmi-kabel-pravouhy.html)
-<img src="docu/HW_parts/micro_hdmi_connector.jpg" width="256"/>
-
-- HDMI cable DIY [here](https://rpishop.cz/hdmi/1209-waveshare-diy-hdmi-plochy-kabel-02m.html)
-<img src="docu/HW_parts/hdmi_cable.jpg" width="256"/>
-<img src="docu/HW_parts/hdmi_final.jpg" width="256"/>
-
-- speaker [here](https://rpishop.cz/reproduktory/1204-waveshare-8-5w-reproduktor.html)
-<img src="docu/HW_parts/speaker.jpg" width="256"/>
-
-- rpi zero [here](https://rpishop.cz/zero/632-raspberry-pi-zero.html)
-<img src="docu/HW_parts/RASP_PI_ZERO_00.png" width="256"/>
-
-- audio amplifier PAM8302 [here](https://rlx.sk/sk/audio-voice-boards-speech-recognition/3397-mono-25w-class-d-audio-amplifier-pam8302-adafruit-2130.html)
-<img src="docu/HW_parts/audio_amplifier.jpg" width="256"/>
-
-- capacitor 2.2uF/50V
-<img src="docu/HW_parts/capacitor.jpg" width="256"/>
-
-- screw M3 4x
-<img src="docu/HW_parts/screw.jpg" width="256"/>
-
-- switch 6x6mm 2x [here](https://www.tme.eu/en/details/tact-64k/microswitches-tact/ninigi/) **watch out for the length of the button**
-<img src="docu/HW_parts/button.jpg" width="256"/>
-
-- micro USB connector [here](https://www.aliexpress.com/item/32916571891.html?spm=a2g0o.productlist.0.0.284c68canDNCGE&algo_pvid=d8468b46-a429-405d-a448-26761076313c&algo_exp_id=d8468b46-a429-405d-a448-26761076313c-5&pdp_ext_f=%7B%22sku_id%22%3A%2266023288418%22%7D)
-<img src="docu/HW_parts/micro_usb.jpg" width="256"/>
-
-- PCB with micro USB connector [here](https://www.aliexpress.com/item/4000484202812.html?spm=a2g0o.productlist.0.0.52451297eW2VB6&algo_pvid=d8623308-0e8e-433a-b8c3-d0a98947ac72&aem_p4p_detail=202111260636579663439259216280013679493&algo_exp_id=d8623308-0e8e-433a-b8c3-d0a98947ac72-9&pdp_ext_f=%7B%22sku_id%22%3A%2210000002007513401%22%7D)
-<img src="docu/HW_parts/microUSB.jpg" width="256"/>
-
-- magnet circle 6x2mm
-<img src="docu/HW_parts/magnet.jpg" width="256"/>
-
-- 3mm LED
-<img src="docu/HW_parts/led.jpg" width="256"/>
-
-- USB A connector [here](https://www.aliexpress.com/item/4000806581109.html?spm=a2g0o.productlist.0.0.2c402a18K0POfK&algo_pvid=fe076f0d-f35f-4749-a6fb-6e73d8c0a93d&algo_exp_id=fe076f0d-f35f-4749-a6fb-6e73d8c0a93d-11&pdp_ext_f=%7B%22sku_id%22%3A%2210000008096938788%22%7D)
-<img src="docu/HW_parts/usbA.jpg" width="256"/>
-
-- Wires
-<img src="docu/HW_parts/wires.jpg" width="256"/>
-
-- long pin header 25mm, male, 2.54MM PITCH [here](https://www.aliexpress.com/item/32851444441.html)
-<img src="docu/HW_parts/pin_header.jpg" width="256"/>
-
----
-<a name="hw_construction"></a>
-# HW construction
-
-Approximate schematic. Missing USB and LCD parts
-<img src="docu/block schematic_schem.png" width="768"/>
-<img src="docu/block schematic_bb.png" width="768"/>
-
-## Pinout
-<img src="docu/RPIpinout.jpg" width="768"/>
-
-Power switch
-```
-POWER SWITCH PIN A -> GPIO26
-POWER SWITCH PIN B -> GND
-```
-Audio amplifier
-```
-AUDIO AMPLIFIER SIGNAL -> GPIO19
-AUDIO AMPLIFIER SHUT DOWN -> GPIO13
-AUDIO AMPLIFIER POWER -> +5V
-AUDIO AMPLIFIER GROUND -> GND
-```
-Buttons
-```
-BUTTON NEXT VIDEO PIN A -> GPIO6
-BUTTON NEXT VIDEO PIN B -> GND
-
-BUTTON XXX PIN A -> GPIO5
-BUTTON XXX PIN B -> GND
-```
-LED
-```
-LED FOR INDICATE USB COMMUNICATION ANODE -> GPIO27
-LED FOR INDICATE USB COMMUNICATION CATODE -> GND
-```
-
-# Soldering and connecting components
-1. Connect switch to LCD display (for enable/disable blacklight). Switch the switch on the LCD to the off position 
-<img src="docu/hw/LCD_1.jpg" width="512"/>
-<img src="docu/hw/LCD_2.jpg" width="512"/>
-
-2. Connect switch to RPI. for RPI pause information
-<img src="docu/hw/RPI_switch.jpg" width="512"/>
+Put the card in the Pi and power it on. The first boot takes a few minutes. Then connect from your computer:
 
 ```
-- one switch pole to GPIO26
-- second pole to GND
+ssh <username>@<hostname>.local
 ```
 
-3. Solder 4pcs long pin header male to RPI board, to connect power to LCD from RPI. long connectors are used for better air circulation, and cooling RPI. You can use heatsink for better cooling
-<img src="docu/hw/lcd_supply1.jpg" width="512"/>
-<img src="docu/hw/lcd_supply2.jpg" width="512"/>
-
-4. Connect speaker to potentiometer and audio amplifier.
-<img src="docu/hw/audio1.jpg" width="512"/>
-<img src="docu/hw/audio6.jpg" width="512"/>
-
-5. Connect audio amplifier to RPI
-<img src="docu/hw/audio2.jpg" width="512"/>
+Update everything and reboot:
 
 ```
-- A+ -> audio input -> RPI pin GPIO19
-- A- -> audio GND -> RPI pin GND
-- SD -> shut down -> RPI pin GPIO13
-- Vin -> voltage input -> RPI pin +5V
-- Gnd -> ground -> RPI pin GND
-```
-
-<img src="docu/hw/audio4.jpg" width="512"/>
-<img src="docu/hw/audio5.jpg" width="512"/>
-
-6. Connect 2.2uF capacitor during A+ and GND pin, for a clearer sound
-<img src="docu/hw/audio3.jpg" width="512"/>
-
-7. Connect HDMI cable
-<img src="docu/hw/hdmi.jpg" width="512"/>
-<img src="docu/hw/hdmi2.jpg" width="512"/>
-
-8.current view of HW
-
-<img src="docu/hw/total.jpg" width="512"/>
-
-9. Micro USB connector female
-<img src="docu/hw/microusb.jpg" width="512"/>
-
-9. Micro USB connector male
-<img src="docu/microUSB.jfif" width="512"/>
-<img src="docu/hw/microusbmale.jpg" width="512"/>
-
-10. Button in VCR recorder. We need only 3 wire. One wire is common (GND). Second wire is for next movie, and next wire is for XXX function. solder and glue
-<img src="docu/hw/vcr2.jpg" width="512"/>
-<img src="docu/hw/vcr1.jpg" width="512"/>
-
-11. Soldering USB A connector for USB masstorage devices. We need an old micro USB cable or micro USB connector and solder 4 wires. VCC, DATA+, DATA-, GND
-<img src="docu/usb_wire_pinout.jpg" width="512"/>
-<img src="docu/hw/usbA.jpg" width="512"/>
-
-12. Soldering LED for indication of copying files from USB stick to microSD card. 
-<img src="docu/led.png" width="512"/>
-<img src="docu/hw/LED.jpg" width="512"/>
-
-13. And soldering LED to RPI PCB. When maximum output voltage from GPIO is 3.3V and maximum current is 16mA, then we don't need resistor for current limitation. But you can use it if you want
-
-
-```
-LED Anode -> GPIO27
-LED Catode -> GND
-```
-
-<img src="docu/hw/LED_RPI.jpg" width="512"/>
-
-14. Stick the VCR to the top of the box with the super glue
-<img src="docu/hw/vcr_case.jpg" width="512"/>
-
-15. Stick the speaker holder to the box with the super glue
-<img src="docu/hw/speaker_holder.jpg" width="512"/>
-
-16. Stick the PCB with micro USB connector to the box with the glue
-<img src="docu/hw/microusb_box.jpg" width="512"/>
-
-17. Stick the PCB with micro A connector to the box with the glue
-<img src="docu/hw/usb_box.jpg" width="512"/>
-
-18. Stick the speaker to the box with the glue
-<img src="docu/hw/speaker.jpg" width="512"/>
-
-19. Now we can soldering wire from VCR to RPI PCB
-
-```
-Wire from button for next movie -> GPIO6
-Common wire -> GND
-Wire from button for XXX -> GPIO5
-```
-
-<img src="docu/hw/vcr_rpi1.jpg" width="512"/>
-<img src="docu/hw/vcr_rpi2.jpg" width="512"/>
-
-20. Stick the LED to the box with the glue
-<img src="docu/hw/led_box.jpg" width="512"/>
-
-21. Stick the magnet to the box with the glue
-<img src="docu/hw/magnet_box.jpg" width="512"/>
-
-22. Connect micro USB connector with power supply to RPI
-<img src="docu/hw/microusb_psu_rpi.jpg" width="512"/>
-
-23. Connect micro USB connector for USB stick to RPI
-<img src="docu/hw/usba_stick_rpi.jpg" width="512"/>
-
-24. Final pictures
-<img src="docu/hw/final1.jpg" width="512"/>
-<img src="docu/hw/final2.jpg" width="512"/>
-<img src="docu/hw/final3.jpg" width="512"/>
-
----
-
-<a name="instalation"></a>
-# Instalation
-
-1. Install OS to micro SD card. For install OS please use Raspberry PI installer [here](https://www.raspberrypi.com/software/)
-2. Create a file before inserting the micro SD card **wpa_supplicant.conf** in **boot** partition and add to file
-```
-country=US
-ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
-update_config=1
-
-network={
-    ssid="NETWORK NAME"
-    psk="NETWORK PASSWORD"
-}
-```
-3. Create a empty file **ssh** before inserting the micro SD card in **boot** partition. For enable SSH server after booting linux
-4. Now you can insert microSD card to RPI and power on. After booting is raspberry-pi automatically connected to WI-FI, with SSH server. After booting you can see IP at the home screen
-<img src="docu/install/ip.jpg" width="768"/>
-
-Now we can use 2 method for instalation and configuration OS. First method is continue to steps 5 and more.
-
-Second method is use scripts for install all neccesary package and configuring OS. This method skip steps 5 -> 18. Method is not fully tested, is only experimental.
-```
-sudo apt-get install git
-cd ~
-git clone https://github.com/johnyHV/simpsonstv
-cd simpsonstv
-sudo ./install_01.sh
-```
-
-After reboot RPI
-```
-cd simpsonstv
-sudo ./ install_02.sh
-```
-If you use this method, then after previous commands please continue to [ step 19 ](#step_19).
-
-5. **Update OS**
-```
-sudo apt-get update
-sudo apt-get upgrade
-sudo rpi-update
-sudo apt-get upgrade
+sudo apt update
+sudo apt full-upgrade -y
 sudo reboot
 ```
 
-6. **LCD driver**. go to **/boot/config.txt** and add next lines for enable LCD drivers. Save, and reboot RPI. Manual for installation  manual is [here](https://www.waveshare.com/wiki/4inch_HDMI_LCD)
+Don't run `rpi-update`; it installs pre-release firmware.
+
+## 4. Install the TV software
 
 ```
-sudo nano /boot/config.txt
-```
-
-add to end file
-
-```
-hdmi_group=2
-hdmi_mode=87
-hdmi_timings=480 0 40 10 80 800 0 13 3 32 0 0 0 60 0 32000000 3
-dtoverlay=ads7846,cs=1,penirq=25,penirq_pull=2,speed=50000,keep_vref_on=0,swapxy=0,pmax=255,xohms=150,xmin=200,xmax=3900,ymin=200,ymax=3900
-display_rotate=3
-hdmi_drive=1
-hdmi_force_hotplug=1
-```
-
-7. **LCD driver.** Install drivers for LCD
-```
-git clone https://github.com/waveshare/LCD-show.git
-cd LCD-show/
-chmod +x LCD4-800x480-show
-sudo ./LCD4-800x480-show
-```
-8. **Enable audio.** add to file **/boot/config.txt**
-```
-sudo nano /boot/config.txt
-```
-add to end file
-```
-dtparam=audio=on
-dtoverlay=audremap,enable_jack,pins_18_19
-```
-9. **Enable audio.** Update file **/etc/rc.local**
-```
-sudo nano /etc/rc.local
-```
-add to end file, before **exit 0** line
-```
-raspi-gpio set 18 op dl
-raspi-gpio set 19 op a5 
-raspi-gpio set 8 a2
-raspi-gpio set 7 a2
-```
-10. Update **/boot/cmdline.txt**
-```
-sudo nano /boot/cmdline.txt
-```
-my file contain
-```
-console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait quiet splash fbcon=map:10 fbcon=font:ProFont6x11
-```
-11. **Install package to OS**
-```
-sudo apt-get install omxplayer git mc screen rsync
-```
-12. **Clone repository**
-```
-cd ~
-git clone https://github.com/johnyHV/simpsonstv
-cd simpsonstv
-```
-13. **Service**. Service for management buttons
-```
-sudo cp simpsonstv/services/tvbutton.service /etc/systemd/system/tvbutton.service
-```
-14. **Service**. Service for management video player
-```
-sudo cp simpsonstv/services/tvplayer.service /etc/systemd/system/tvplayer.service
-```
-15. **Update permission for script**
-```
-sudo chmod +x /home/pi/simpsonstv/dbuscontrol.sh
-```
-16. **Version with USB**. Service for auto copy files from USB mass storage devices to RPI flash drive. 
-```
-sudo cp simpsonstv/services/tvautocopy.service /etc/systemd/system/tvautocopy.service
-```
-17. **Version with USB**. Enable autocopy service
-```
-sudo chmod +x /home/pi/simpsonstv/autocopy.sh
-```
-18. **Service**. Enable services
-```
-sudo systemctl enable tvbutton.service
-sudo systemctl enable tvplayer.service
-sudo systemctl enable tvautocopy.service
-```
-<a name="step_19"></a>
-19. **Reboot system**
-```
+sudo apt install -y git
+git clone https://github.com/hdurdle/simpsonstv.git ~/simpsonstv
+cd ~/simpsonstv
+sudo ./install.sh
 sudo reboot
 ```
-20. Now we need convert video file to **mp4** format. For this exist python script encode.py stored in **~/simpsonstv/video/**. Video file you can convert on RPI (but it's very tedious and slow) or on the your computer. You can use different SW for converting video file. 
-```
-~/simpsonstv/video/
-sudo python encode.py
-```
-21. **Copy video to RPI**. 
-**Copy via network** For example, you can use **scp** or **winscp**, for copy files via network sfp to RPI. Directory for video
-```
-~/simpsonstv/videos
-```
-**Copy movie from USB**. We need create a folder **simpsonstv** on the USB key in root, and store movies to this folder. After booting linux, and insert USB key is automaticly started script for copy movies from FLASH drive to micro SD card. the LED near the USB port lights up during the copying process. When copying is complete, the LED will turn off and you can disconnect the USB key
 
-<img src="docu/hw/usb_stick_port.jpg" width="512"/>
+Until [PR #1](https://github.com/hdurdle/simpsonstv/pull/1) is merged, the new code is on a branch, so clone with `git clone -b pi-zero-2w-mpv ...` instead.
 
-22. **Two player scripts** There are currently two existing scripts for two-player functionality. The first script, player.py, is standard and plays random videos. The second script, player-playlist.py, saves the last played video, allowing the device to continue from where it left off after a reboot. If opting for the second script, it's necessary to rename the script
+`install.sh` asks before changing anything. It:
+
+- installs **mpv**, **ffmpeg** (to read episode lengths), **numpy** (to draw the CRT look) and the GPIO libraries (**gpiozero**, **lgpio**)
+- turns on **PWM audio** on GPIO18/19 in `/boot/firmware/config.txt`
+- sets the **LCD mode** (800×480, the screen's own landscape mode) and hides the text console and cursor in `/boot/firmware/cmdline.txt`. Both files are backed up first, next to the originals.
+- turns off the login prompt on the TV screen (you log in over SSH instead), so no text ever shows between videos. To get it back: `sudo systemctl enable --now getty@tty1`
+- creates `~/simpsonstv/simpsonstv.conf` with the default settings
+- installs and starts the **simpsonstv** service, which runs at every boot
+- installs **Samba** and shares the `videos` folder on your network as `videos`, with the login **`tv`**. On the first run it **asks you to choose the share's password**. `/etc/samba/smb.conf` is backed up first. It also installs **wsdd**, so the TV shows up under *Network* in Windows File Explorer.
+
+It's safe to run again (for example after `git pull`); changes it has already made aren't repeated.
+
+## 5. Add videos
+
+**Convert** your videos to mp4 on your computer (it's much faster than on the Pi). `videos/encode.py` needs [ffmpeg](https://ffmpeg.org/) installed. It converts every video in the `videos` folder to 480p H.264 in `videos/encoded/`:
+
 ```
-cd simpsonstv
-mv player.py player-random.py
-mv player-playlist.py player.py
-sudo systemctl restart tvplayer.service
+cd videos
+python3 encode.py
 ```
+
+**Upload** them to the TV's network share, in **one folder per show**. Each show folder becomes a channel. Season folders inside a show are fine, and episodes play in name order, so name them so they sort correctly (`S01E01`, `S01E02`, …):
+
+```
+videos
+├── The Simpsons
+│   ├── S01E01.mp4
+│   └── S01E02.mp4
+└── Futurama
+    └── S01E01.mp4
+```
+
+Open the share from your computer. The login is **`tv`**, with the password you chose when you ran `install.sh`:
+
+- **Windows:** in File Explorer's address bar, type `\\<hostname>.local\videos` (for example `\\simpsonstv.local\videos`). When asked, enter the username as **`<hostname>\tv`** (for example `simpsonstv\tv`); the hostname in front stops Windows using your own PC's or work domain. Tick *Remember my credentials* if you like.
+- **Mac:** in Finder, choose *Go → Connect to Server*, enter `smb://<hostname>.local/videos`, choose **Registered User**, and log in as `tv`.
+- **Linux:** `smb://<hostname>.local/videos` in your file manager, logging in as `tv`.
+
+New shows and episodes appear automatically within a couple of minutes; no restart needed. Files still being copied are left out until they've finished.
+
+Anyone with the password can add, rename and delete episodes. The share only accepts connections from private (home or office network) addresses, never from the internet. To change the password, run `sudo ./install.sh --share-password`.
+
+You can also copy files with `scp` or WinSCP, using your Pi login instead of the share: `scp *.mp4 <username>@<hostname>.local:"~/simpsonstv/videos/The Simpsons/"`.
+
+## 6. Settings
+
+Settings are in `~/simpsonstv/simpsonstv.conf`. After changing it, run:
+
+```
+sudo systemctl restart simpsonstv
+```
+
+| Setting | What it does |
+|---|---|
+| `MPV_ARGS` | Display and audio options for mpv: rotation, video output, sound card. See *Troubleshooting* below. |
+| `POWER_SWITCH_INVERT` | Set to `1` if the TV plays when switched off. |
+
 ---
-<a name="images_url"></a>
-# Image
-We can download my RPI ZERO image from my [gdrive](https://drive.google.com/drive/folders/1mnJnrXVBaZO_8UrxD8tn1eNyA690npIP?usp=sharing). I don't tested if is this image compatible with ZERO W or ZERO 2 W
 
-- OS: raspberry-pi OS 32bit
-- username: pi
-- password: raspberry
+## Channels
 
----
-<a name="howtouse"></a>
-# How to use
+The TV behaves like analogue broadcast TV:
 
-***TODO***
+- **Every show folder is a channel**, numbered in name order. Episodes loose in `videos/` itself form a channel called *Mixed*.
+- **Channels air live.** Each one plays its episodes in order and loops, on a schedule based on the real time. Changing channel drops you into whatever is on now, part-way through. Come back later and the show has moved on.
+- **Each channel is at a different point** in its run, so they don't all change episode together.
+- **The TV remembers its channel** after a reboot.
+- **No videos yet** (or while the first scan is still running) shows snow, like an untuned channel.
+
+Things to know:
+
+- The schedule depends on the Pi's clock, which it sets from the internet at startup. Without a network the channels still play, just at a different point.
+- Adding or removing episodes changes that show's schedule, so the channel jumps to a different point.
+- The first scan reads every episode's length with `ffprobe`, which takes a moment per episode on a Pi Zero; you'll see snow until it's done. Lengths are saved in `cache/`, so later startups are quick.
+
+## Controls
+
+| Control | GPIO | What it does |
+|---|---|---|
+| Power switch | 26 | **On:** picture and sound, tuned to whatever is on now. **Off:** sound off and playback stopped; the channels carry on without you. |
+| Right VCR button | 6 | **Channel up**, with a short burst of static. Flick quickly for continuous static. |
+| Left VCR button | 5 | **Channel down**, with static. |
+| Both VCR buttons, held 3 seconds | 5 + 6 | Plays the **CRT switch-off**, then **shuts down**. With the TV switched off it shuts down straight away. Wait for the Pi to finish shutting down before unplugging it. |
+
+The audio amplifier uses GPIO19 (audio) and GPIO13 (mute). Wiring details are in [docu/hardware.md](docu/hardware.md).
+
+## Control from the command line (test mode)
+
+Over SSH, `tvctl` does everything the switch and buttons do, so you can test without touching the TV:
+
+| Command | Same as |
+|---|---|
+| `tvctl on` / `tvctl off` | Power switch on / off. Overrides the real switch until `tvctl auto`. |
+| `tvctl auto` | Follow the physical power switch again. |
+| `tvctl up` / `tvctl down` | Right / left VCR button (also `tvctl right` / `tvctl left`). |
+| `tvctl switchoff` | Plays the CRT switch-off, then carries on, **without** powering off. For testing. |
+| `tvctl shutdown` | Both buttons held: switch-off, then power off (asks to confirm). |
+| `tvctl status` | Power and why, switch position, CRT effect, current channel, what's on air, all channels. |
+| `tvctl crt on` / `tvctl crt off` | Turn the CRT look on or off (until the service restarts). |
+
+For example, to test with the switch off: `tvctl on`, then `tvctl up` a few times, then `tvctl status`, then `tvctl auto` when you're done.
+
+The `tvctl on/off` override lasts until `tvctl auto` or the service restarts (for example after a reboot), so the real switch always takes over again. `tvctl` works for the user who owns the `simpsonstv` folder, or with `sudo`. Commands also show up in `journalctl -u simpsonstv`.
+
+## CRT look
+
+A see-through overlay drawn over the picture makes the screen look like an old tube TV:
+
+- **scanlines:** every other row a little darker
+- **phosphor grille:** a faint vertical pattern
+- **vignette:** darker edges
+- **glare:** a soft highlight in the top left
+- **rounded corners**
+
+It's drawn to fit the picture, so it lines up with 4:3 and widescreen episodes. It costs almost nothing to show, because mpv layers it over the video the same way it does on-screen text.
+
+It's on by default. Turn it off for good with `CRT_EFFECT=off` in `simpsonstv.conf`, or try it out with `tvctl crt off` / `tvctl crt on`. To adjust each part, change the `CRT_*` strengths in `simpsonstv.conf` (0 is none, 1 is strongest), then run `sudo systemctl restart simpsonstv`.
+
+To try settings on your computer first, `crt.py` can draw the overlay over any picture (needs numpy and Pillow):
+
+```
+python3 crt.py --preview screenshot.png preview.png --scanlines 0.4 --corners 0.08
+```
+
+## Static and switch-off clips
+
+The channel-change static (`interstitials/static_*.mp4`) and the switch-off (`interstitials/crt_off.mp4`) are included. To change them, run `interstitials/make_interstitials.py` on your computer (needs ffmpeg, numpy and Pillow). `--help` lists the options, such as more variants, the maximum length, or the full 800 px screen width.
+
+## Troubleshooting
+
+See what's happening:
+
+```
+journalctl -u simpsonstv -f
+```
+
+The log lists the channels after each scan and every channel change.
+
+- **Black screen:** check the screen's modes with `cat /sys/class/drm/card*-HDMI-A-1/modes`. If mpv reports errors, change `--vo=gpu --gpu-context=drm` to `--vo=drm` in `MPV_ARGS`.
+- **Picture upside down or sideways:** change `--video-rotate=0` in `MPV_ARGS`. Use `180` for upside down. For sideways, use `90` if the top of the picture is on the left, or `270` if it is on the right. mpv rotates clockwise.
+- **Picture partly hidden by the case:** add, for example, `--video-margin-ratio-right=0.0625` to `MPV_ARGS`.
+- **No sound:** find the card name with `aplay -l`, and test with `speaker-test -D plughw:CARD=Headphones -c 1 -t sine`.
+- **Power switch works backwards:** set `POWER_SWITCH_INVERT=1`.
+- **Only snow, or "Channels: none" in the log:** check that the mp4 files are in show folders in `~/simpsonstv/videos`, that the copy finished more than a minute ago, and that `ffprobe <file>` can read them.
+- **TV doesn't appear under Network in Windows:** type `\\<hostname>.local\videos` into File Explorer's address bar instead, or use the Pi's IP address (`hostname -I` on the Pi). Discovery relies on the `wsdd` service: `systemctl status wsdd`.
+- **Can't connect to the share:** check Samba is running with `systemctl status smbd`. Make sure you log in as `<hostname>\tv` on Windows, not just `tv`. Check the password from the Pi with `smbclient -U tv //localhost/videos -c ls` (install `smbclient` first). If Windows keeps reusing a wrong password, remove the saved one in *Credential Manager → Windows Credentials*. If your computer is on an unusual network range, adjust `hosts allow` in the `simpsonstv` block of `/etc/samba/smb.conf`, then run `sudo systemctl restart smbd`.
+- **Forgot the share password:** run `sudo ./install.sh --share-password` to set a new one.
+
+## Updating
+
+```
+cd ~/simpsonstv
+git pull
+sudo ./install.sh
+sudo systemctl restart simpsonstv
+```

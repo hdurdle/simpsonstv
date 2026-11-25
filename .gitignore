@@ -1,0 +1,7 @@
+simpsonstv.conf
+# Episode lengths and the last channel, written by tv.py
+cache/
+# Episodes (one folder per show, uploaded over the network); keep only the encoder script
+videos/*
+!videos/encode.py
+__pycache__/

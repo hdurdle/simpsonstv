@@ -1,0 +1,14 @@
+[Unit]
+Description=Simpsons TV: live channels, power switch and buttons
+After=sound.target
+
+[Service]
+WorkingDirectory=@INSTALL_DIR@
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-@INSTALL_DIR@/simpsonstv.conf
+ExecStart=/usr/bin/python3 @INSTALL_DIR@/tv.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

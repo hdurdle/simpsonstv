@@ -1,0 +1,31 @@
+# Simpsons TV settings.
+# install.sh copies this to simpsonstv.conf; edit that copy, then run:
+#   sudo systemctl restart simpsonstv
+
+# mpv options for display and audio.
+# - Picture upside down: change --video-rotate=0 to --video-rotate=180.
+#   Sideways: use 90 if the top of the picture is on the left, 270 if it's on
+#   the right (mpv rotates clockwise).
+# - Black screen / mpv errors in `journalctl -u simpsonstv`: try --vo=drm instead of
+#   --vo=gpu --gpu-context=drm
+# - Picture hidden behind the case bezel on one side: add e.g.
+#   --video-margin-ratio-right=0.0625  (the old omxplayer setup used 750 of 800 px)
+# - No sound: check the card name with `aplay -l`
+MPV_ARGS="--vo=gpu --gpu-context=drm --hwdec=auto-safe --video-rotate=0 --ao=alsa --audio-device=alsa/plughw:CARD=Headphones,DEV=0"
+
+# Set to 1 if the power switch works backwards (TV plays when switched off).
+POWER_SWITCH_INVERT=0
+
+# CRT look drawn over the picture: on or off (tvctl crt on/off toggles it
+# until the next restart). Strengths are 0 (none) to 1 (strongest).
+CRT_EFFECT=on
+# darkness of every other screen row
+CRT_SCANLINES=0.30
+# faint phosphor grille (every third column)
+CRT_MASK=0.08
+# darker towards the edges
+CRT_VIGNETTE=0.45
+# soft glass glare, top left
+CRT_REFLECTION=0.05
+# rounded corner radius, as a fraction of picture height
+CRT_CORNERS=0.06
